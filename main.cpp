@@ -67,6 +67,7 @@ int randi(int min, int max)
 
 
 void Initialize_Environment() {
+    //现在为方便开发，先设置为读取txt当作输入
     ifstream infile("input.txt");
     if (!infile) {
         cout << "Error opening input file." << endl;
