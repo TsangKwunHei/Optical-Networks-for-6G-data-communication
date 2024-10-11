@@ -126,7 +126,6 @@ void Initialize_Environment() {
 }
 
 
-
 void detect_need_to_replan(vector<service>* services, failure_scenario scene1) {
 
     vector<bool> fiber_is_broken;
