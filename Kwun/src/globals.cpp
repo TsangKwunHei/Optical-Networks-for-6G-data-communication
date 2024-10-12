@@ -10,8 +10,8 @@ constexpr int MAX_N = 200;
 constexpr int MAX_M = 1000;
 
 // GA parameters
-constexpr int POPULATION_SIZE = 100;
-constexpr int MAX_GENERATIONS = 100;
+constexpr int POPULATION_SIZE = 50;
+constexpr int MAX_GENERATIONS = 50;
 constexpr double CROSSOVER_RATE = 0.9;
 constexpr double MUTATION_RATE = 0.1;
 // Global variables representing the network environment

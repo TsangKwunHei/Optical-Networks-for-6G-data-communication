@@ -1,2 +1,3 @@
 g++ -std=c++17 -o program build/main.cpp
-python3 bundler.py -i ./src/main.cpp -o ./build/main.cpp
+python3 new_bundler.py -i ./src/main.cpp -o ./build/main.cpp
+g++ -std=c++17 -o program src/main.cpp
