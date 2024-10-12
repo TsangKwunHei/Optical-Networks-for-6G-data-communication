@@ -1,0 +1,46 @@
+
+num_nodes, num_edges
+num_channel_conversion_opportunities_for_nodes
+
+
+node_i, node_i+1
+..
+node_i, node_i+1
+
+  
+
+number of services initially 
+
+for each service: {
+line 1 : source, destination, num_edges_traversed, wavelength_range, service_value
+line 2 : sequence of edge numbers the service traverses }
+
+  
+  
+  
+
+num_edge_failure_test_cases
+
+  
+
+For each test case: {
+
+line 1 : num_edge_failure
+
+line 2 : sequence_of_failure_by_edge_ID }
+
+  
+  
+  
+
+Independent_test_scenarios
+  
+For each test scenario: {
+received_num_edges_disrupted
+num_servces_replanned }
+
+For each replanned_service: {
+line 1: service_id, num_edges_in_new_path
+line 2: sequence of edge index the service traverses, wavelength_interval_on_that_edge
+}
+
