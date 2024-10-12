@@ -1,0 +1,23 @@
+
+
+
+1 Input
+Read number of nodes and edges
+num_channel_conversion_opportunities_for_nodes
+Build the graph
+Read initial services
+number of services initially 
+
+interaction inputs
+
+
+2 Bottle Neck
+Collect edges used by services, weighted by service value
+Sort edges by usage (descending order)
+Generate test scenarios with top used edges as failures
+Ensure that Jaccard similarity between test scenarios ≤ 0.5
+
+3 
+Reset the environment for each scenario
+Identify affected services
+ # Replan services
