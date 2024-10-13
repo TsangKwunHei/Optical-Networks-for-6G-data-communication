@@ -8,7 +8,7 @@
 #include <map>
 #include <queue>
 #include <random>
-#include <unordered_set>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -43,9 +43,10 @@ AssignWavelengthsUsingGA(const std::vector<int> &affected_services) {
       // Update temp_edge_wavelengths with the new assignments
       for (std::size_t j = 0; j < srv.path.size(); ++j) {
         int edge_id = srv.path[j];
-        for (int w = srv.wavelengths[j];
-             w <= srv.wavelengths[j] + (srv.R - srv.L); ++w) {
-          temp_edge_wavelengths[edge_id].set(w);
+        int w = srv.wavelengths[j];
+        int width = srv.R - srv.L + 1;
+        for (int offset = 0; offset < width; ++offset) {
+          temp_edge_wavelengths[edge_id].set(w + offset);
         }
       }
       // Channel conversion opportunities updated in RunGAWithTemp
@@ -63,7 +64,8 @@ AssignWavelengthsUsingGA(const std::vector<int> &affected_services) {
   return successfully_replanned_services;
 }
 
-// Function to run GA for a single service using temporary edge_wavelengths and temp_Pi
+// Function to run GA for a single service using temporary edge_wavelengths and
+// temp_Pi
 bool RunGAWithTemp(Service &srv,
                    std::vector<std::bitset<MAX_K + 1>> &temp_edge_wavelengths,
                    std::vector<int> &temp_Pi) {
@@ -71,14 +73,18 @@ bool RunGAWithTemp(Service &srv,
   std::vector<std::vector<int>> population;
   std::vector<double> fitness_values;
 
-  // Generate initial population
-  for (int i = 0; i < POPULATION_SIZE; ++i) {
+  // Generate initial population using random walks
+  int initial_population_size = 0;
+  while (initial_population_size < POPULATION_SIZE * 2) {
     std::vector<int> chromosome = GenerateInitialChromosome(srv);
     if (chromosome.empty())
       continue;
     population.emplace_back(chromosome);
     fitness_values.emplace_back(
         FitnessFunction(chromosome, srv, temp_edge_wavelengths, temp_Pi));
+    initial_population_size++;
+    if (static_cast<int>(population.size()) >= POPULATION_SIZE)
+      break;
   }
 
   if (population.empty())
@@ -149,8 +155,8 @@ bool RunGAWithTemp(Service &srv,
   std::vector<int> wavelengths;
   std::map<int, int> converters_needed;
   bool valid = DecodeChromosomeWithTemp(best_chromosome, srv, path, wavelengths,
-                                        converters_needed,
-                                        temp_edge_wavelengths, temp_Pi);
+                                        converters_needed, temp_edge_wavelengths,
+                                        temp_Pi);
   if (valid) {
     srv.path = path;
     srv.wavelengths = wavelengths;
@@ -173,8 +179,8 @@ double FitnessFunction(
   std::vector<int> wavelengths;
   std::map<int, int> converters_needed;
   bool valid = DecodeChromosomeWithTemp(chromosome, srv, path, wavelengths,
-                                        converters_needed,
-                                        temp_edge_wavelengths, temp_Pi);
+                                        converters_needed, temp_edge_wavelengths,
+                                        temp_Pi);
   if (!valid)
     return 1e9; // High penalty for invalid chromosome
 
@@ -186,306 +192,135 @@ double FitnessFunction(
   }
   return static_cast<double>(path.size()) + num_conversions * 10.0;
 }
-
-// Function to generate an initial chromosome for a service
+// Function to generate an initial chromosome for a service using BFS
 std::vector<int> GenerateInitialChromosome(const Service &srv) {
-  // Generate a random simple path from s to d
-  int max_attempts = 100;
-  for (int attempt = 0; attempt < max_attempts; ++attempt) {
-    std::vector<int> path_nodes;
-    std::unordered_set<int> visited;
-    std::vector<int> edge_path;
+  std::vector<int> parent(N + 1, -1);
+  std::vector<int> edge_to(N + 1, -1);
+  std::queue<int> q;
+  std::vector<bool> visited(N + 1, false);
 
-    int current_node = srv.s;
-    path_nodes.push_back(current_node);
-    visited.insert(current_node);
+  q.push(srv.s);
+  visited[srv.s] = true;
 
-    while (current_node != srv.d) {
-      const auto &neighbors = adjacency_list[current_node];
-      if (neighbors.empty()) {
-        break; // Dead end
-      }
-      // Randomly select a neighbor
-      std::vector<std::pair<int, int>> unvisited_neighbors;
-      for (const auto &[neighbor, edge_id] : neighbors) {
-        if (visited.find(neighbor) == visited.end()) {
-          unvisited_neighbors.emplace_back(neighbor, edge_id);
-        }
-      }
-      if (unvisited_neighbors.empty()) {
-        break; // No unvisited neighbors, dead end
-      }
-      std::uniform_int_distribution<> dist(
-          0, static_cast<int>(unvisited_neighbors.size()) - 1);
-      int idx = dist(gen);
-      int next_node = unvisited_neighbors[idx].first;
-      int edge_id = unvisited_neighbors[idx].second;
+  while (!q.empty()) {
+    int current_node = q.front();
+    q.pop();
 
-      path_nodes.push_back(next_node);
-      edge_path.push_back(edge_id);
-      visited.insert(next_node);
-      current_node = next_node;
+    if (current_node == srv.d)
+      break;
+
+    for (const auto &[neighbor, edge_id] : adjacency_list[current_node]) {
+      if (!visited[neighbor]) {
+        visited[neighbor] = true;
+        parent[neighbor] = current_node;
+        edge_to[neighbor] = edge_id;
+        q.push(neighbor);
+      }
     }
-
-    if (current_node == srv.d) {
-      return edge_path;
-    }
-    // If not successful, try again
   }
-  // If no path found after max_attempts
-  return {};
+
+  if (!visited[srv.d]) {
+    // No path found
+    return {};
+  }
+
+  // Reconstruct path from s to d
+  std::vector<int> path_edges;
+  int current_node = srv.d;
+  while (current_node != srv.s) {
+    path_edges.push_back(edge_to[current_node]);
+    current_node = parent[current_node];
+  }
+
+  std::reverse(path_edges.begin(), path_edges.end());
+  return path_edges;
 }
 
-// Function to get nodes from edges
-std::vector<int> GetNodesFromEdges(const std::vector<int> &edges_sequence, int start_node) {
-  std::vector<int> nodes;
-  nodes.push_back(start_node);
-  int current_node = start_node;
+// Function to mutate a chromosome while ensuring a valid path
+std::vector<int> MutateChromosome(const std::vector<int> &chromosome,
+                                  const Service &srv) {
+  if (chromosome.empty())
+    return chromosome;
 
-  for (const auto &edge_id : edges_sequence) {
+  // Select a mutation point
+  std::uniform_int_distribution<> dist_idx(0, static_cast<int>(chromosome.size()) - 1);
+  int mutation_point = dist_idx(gen);
+
+  // Extract sub-paths
+  std::vector<int> prefix_edges(chromosome.begin(), chromosome.begin() + mutation_point);
+  int mutation_node = srv.s;
+  for (int edge_id : prefix_edges) {
     int u = edges[edge_id].first;
     int v = edges[edge_id].second;
-    int next_node;
-    if (u == current_node) {
-      next_node = v;
-    } else if (v == current_node) {
-      next_node = u;
-    } else {
-      // Invalid path
-      return {};
-    }
-    nodes.push_back(next_node);
-    current_node = next_node;
+    mutation_node = (u == mutation_node) ? v : u;
   }
-  return nodes;
+
+  // Reroute from mutation_node to destination using BFS
+  Service temp_srv = srv;
+  temp_srv.s = mutation_node;
+  std::vector<int> new_suffix = GenerateInitialChromosome(temp_srv);
+
+  if (new_suffix.empty())
+    return chromosome; // Return original if mutation fails
+
+  // Combine prefix and new suffix
+  prefix_edges.insert(prefix_edges.end(), new_suffix.begin(), new_suffix.end());
+  return prefix_edges;
 }
 
-// Function to convert nodes to edges
-std::vector<int> ConvertNodesToEdges(const std::vector<int> &nodes) {
-  std::vector<int> edges_path;
-  for (size_t i = 1; i < nodes.size(); ++i) {
-    int u = nodes[i - 1];
-    int v = nodes[i];
-    // Find an edge between u and v
-    bool found = false;
-    for (const auto &[neighbor, edge_id] : adjacency_list[u]) {
-      if (neighbor == v) {
-        edges_path.emplace_back(edge_id);
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      // No edge between u and v
-      return {};
-    }
-  }
-  return edges_path;
-}
-
-// Function to perform crossover between two chromosomes
+// Function to perform crossover between two chromosomes ensuring valid paths
 std::pair<std::vector<int>, std::vector<int>>
 CrossoverChromosomes(const std::vector<int> &parent1,
                      const std::vector<int> &parent2, const Service &srv) {
-  std::uniform_real_distribution<> dis(0.0, 1.0);
-  if (dis(gen) >= CROSSOVER_RATE) {
-    // No crossover, return parents
+  if (parent1.empty() || parent2.empty())
     return {parent1, parent2};
+
+  // Map nodes to indices for quick lookup
+  std::unordered_map<int, int> parent1_nodes;
+  int node = srv.s;
+  parent1_nodes[node] = 0;
+  for (size_t i = 0; i < parent1.size(); ++i) {
+    int edge_id = parent1[i];
+    int u = edges[edge_id].first;
+    int v = edges[edge_id].second;
+    node = (u == node) ? v : u;
+    parent1_nodes[node] = i + 1;
   }
 
-  // Find common nodes between the two parents
-  std::vector<int> parent1_nodes = GetNodesFromEdges(parent1, srv.s);
-  std::vector<int> parent2_nodes = GetNodesFromEdges(parent2, srv.s);
-
-  if (parent1_nodes.empty() || parent2_nodes.empty()) {
-    return {parent1, parent2};
-  }
-
-  std::unordered_map<int, int> node_indices_p1;
-  for (size_t i = 0; i < parent1_nodes.size(); ++i) {
-    node_indices_p1[parent1_nodes[i]] = static_cast<int>(i);
-  }
-
+  node = srv.s;
   std::vector<int> common_nodes;
-  for (size_t i = 0; i < parent2_nodes.size(); ++i) {
-    int node = parent2_nodes[i];
-    if (node_indices_p1.find(node) != node_indices_p1.end()) {
+  if (parent1_nodes.count(node))
+    common_nodes.push_back(node);
+  for (size_t i = 0; i < parent2.size(); ++i) {
+    int edge_id = parent2[i];
+    int u = edges[edge_id].first;
+    int v = edges[edge_id].second;
+    node = (u == node) ? v : u;
+    if (parent1_nodes.count(node))
       common_nodes.push_back(node);
-    }
   }
 
-  if (common_nodes.empty()) {
-    // No common nodes, cannot crossover
-    return {parent1, parent2};
-  }
+  if (common_nodes.size() <= 1)
+    return {parent1, parent2}; // No crossover possible
 
-  // Randomly select a common node to crossover
-  std::uniform_int_distribution<> dist(0, static_cast<int>(common_nodes.size()) - 1);
-  int idx = dist(gen);
-  int crossover_node = common_nodes[idx];
+  // Choose a random crossover node
+  std::uniform_int_distribution<> dist(1, static_cast<int>(common_nodes.size()) - 1);
+  int crossover_node = common_nodes[dist(gen)];
 
-  // Get indices of crossover node in parents
-  int p1_idx = node_indices_p1[crossover_node];
-  int p2_idx = 0;
-  for (size_t i = 0; i < parent2_nodes.size(); ++i) {
-    if (parent2_nodes[i] == crossover_node) {
-      p2_idx = static_cast<int>(i);
-      break;
-    }
-  }
+  // Split parents at crossover node
+  int idx1 = parent1_nodes[crossover_node];
+  int idx2 = parent1_nodes[crossover_node];
 
-  // Create offspring by swapping subpaths
-  std::vector<int> child1_nodes(parent1_nodes.begin(), parent1_nodes.begin() + p1_idx + 1);
-  child1_nodes.insert(child1_nodes.end(), parent2_nodes.begin() + p2_idx + 1, parent2_nodes.end());
+  std::vector<int> child1_edges(parent1.begin(), parent1.begin() + idx1);
+  std::vector<int> child2_edges(parent2.begin(), parent2.begin() + idx2);
 
-  std::vector<int> child2_nodes(parent2_nodes.begin(), parent2_nodes.begin() + p2_idx + 1);
-  child2_nodes.insert(child2_nodes.end(), parent1_nodes.begin() + p1_idx + 1, parent1_nodes.end());
-
-  // Remove possible cycles in child paths
-  std::unordered_set<int> visited_nodes;
-  std::vector<int> pruned_child1_nodes;
-  for (int node : child1_nodes) {
-    if (visited_nodes.count(node) == 0) {
-      pruned_child1_nodes.push_back(node);
-      visited_nodes.insert(node);
-    } else {
-      // Cycle detected, stop adding nodes
-      break;
-    }
-  }
-
-  visited_nodes.clear();
-  std::vector<int> pruned_child2_nodes;
-  for (int node : child2_nodes) {
-    if (visited_nodes.count(node) == 0) {
-      pruned_child2_nodes.push_back(node);
-      visited_nodes.insert(node);
-    } else {
-      // Cycle detected, stop adding nodes
-      break;
-    }
-  }
-
-  // Convert node paths to edge paths
-  std::vector<int> child1_edges = ConvertNodesToEdges(pruned_child1_nodes);
-  std::vector<int> child2_edges = ConvertNodesToEdges(pruned_child2_nodes);
-
-  // Validate paths
-  if (child1_edges.empty()) {
-    child1_edges = parent1;
-  }
-  if (child2_edges.empty()) {
-    child2_edges = parent2;
-  }
+  // Append the rest from the other parent
+  child1_edges.insert(child1_edges.end(), parent2.begin() + idx2, parent2.end());
+  child2_edges.insert(child2_edges.end(), parent1.begin() + idx1, parent1.end());
 
   return {child1_edges, child2_edges};
 }
 
-// Function to generate a random path for mutation
-std::vector<int> GenerateRandomPath(const Service &srv) {
-  // Similar to GenerateInitialChromosome, but from srv.s to srv.d
-  int max_attempts = 100;
-  for (int attempt = 0; attempt < max_attempts; ++attempt) {
-    std::vector<int> path_nodes;
-    std::unordered_set<int> visited;
-    std::vector<int> edge_path;
-
-    int current_node = srv.s;
-    path_nodes.push_back(current_node);
-    visited.insert(current_node);
-
-    while (current_node != srv.d) {
-      const auto &neighbors = adjacency_list[current_node];
-      if (neighbors.empty()) {
-        break; // Dead end
-      }
-      // Randomly select a neighbor
-      std::vector<std::pair<int, int>> unvisited_neighbors;
-      for (const auto &[neighbor, edge_id] : neighbors) {
-        if (visited.find(neighbor) == visited.end()) {
-          unvisited_neighbors.emplace_back(neighbor, edge_id);
-        }
-      }
-      if (unvisited_neighbors.empty()) {
-        break; // No unvisited neighbors, dead end
-      }
-      std::uniform_int_distribution<> dist(0, static_cast<int>(unvisited_neighbors.size()) - 1);
-      int idx = dist(gen);
-      int next_node = unvisited_neighbors[idx].first;
-      int edge_id = unvisited_neighbors[idx].second;
-
-      path_nodes.push_back(next_node);
-      edge_path.push_back(edge_id);
-      visited.insert(next_node);
-      current_node = next_node;
-    }
-
-    if (current_node == srv.d) {
-      return edge_path;
-    }
-    // If not successful, try again
-  }
-  // If no path found after max_attempts
-  return {};
-}
-
-// Function to mutate a chromosome
-std::vector<int> MutateChromosome(const std::vector<int> &chromosome,
-                                  const Service &srv) {
-  // Convert chromosome to nodes
-  std::vector<int> nodes = GetNodesFromEdges(chromosome, srv.s);
-
-  if (nodes.size() <= 2) {
-    // Can't mutate a path of length <= 2
-    return chromosome;
-  }
-
-  // Randomly select a mutation point
-  std::uniform_int_distribution<> dist_idx(1, static_cast<int>(nodes.size()) - 2);
-  int mutation_point = dist_idx(gen);
-
-  int mutation_node = nodes[mutation_point];
-
-  // Generate a new subpath from mutation_node to destination
-  Service sub_srv;
-  sub_srv.s = mutation_node;
-  sub_srv.d = srv.d;
-
-  std::vector<int> new_subpath = GenerateRandomPath(sub_srv);
-  if (new_subpath.empty()) {
-    // Mutation failed, return original chromosome
-    return chromosome;
-  }
-
-  // Convert new subpath to node sequence
-  std::vector<int> new_subpath_nodes = GetNodesFromEdges(new_subpath, mutation_node);
-
-  // Build new nodes sequence
-  std::vector<int> mutated_nodes;
-  mutated_nodes.insert(mutated_nodes.end(), nodes.begin(), nodes.begin() + mutation_point + 1);
-  mutated_nodes.insert(mutated_nodes.end(), new_subpath_nodes.begin() + 1, new_subpath_nodes.end());
-
-  // Remove possible cycles
-  std::unordered_set<int> visited_nodes;
-  std::vector<int> pruned_mutated_nodes;
-  for (int node : mutated_nodes) {
-    if (visited_nodes.count(node) == 0) {
-      pruned_mutated_nodes.push_back(node);
-      visited_nodes.insert(node);
-    } else {
-      // Cycle detected, stop adding nodes
-      break;
-    }
-  }
-
-  // Convert nodes back to edges
-  std::vector<int> mutated_edges = ConvertNodesToEdges(pruned_mutated_nodes);
-  if (mutated_edges.empty()) {
-    // Invalid path, return original chromosome
-    return chromosome;
-  }
-  return mutated_edges;
-}
 
 // Function to decode a chromosome into a path and wavelength assignment using
 // temporary edge_wavelengths and temp_Pi
@@ -569,25 +404,19 @@ bool DecodeChromosomeWithTemp(
       int edge_prev = path[i - 1];
       int edge_curr = path[i];
       // Find the common node
-      int u1 = edges[edge_prev].first;
-      int v1 = edges[edge_prev].second;
-      int u2 = edges[edge_curr].first;
-      int v2 = edges[edge_curr].second;
-
+      int node_u1 = edges[edge_prev].first;
+      int node_v1 = edges[edge_prev].second;
+      int node_u2 = edges[edge_curr].first;
+      int node_v2 = edges[edge_curr].second;
       int common_node = -1;
-      if (u1 == u2 || u1 == v2) {
-        common_node = u1;
-      } else if (v1 == u2 || v1 == v2) {
-        common_node = v1;
-      } else {
+      if (node_u1 == node_u2 || node_u1 == node_v2) {
+        common_node = node_u1;
+      } else if (node_v1 == node_u2 || node_v1 == node_v2) {
+        common_node = node_v1;
+      }
+      if (common_node == -1) {
         return false; // Invalid path
       }
-
-      if (common_node == srv.s) {
-        // Source node cannot perform channel conversion
-        return false;
-      }
-
       converters_needed[common_node]++;
       prev_wavelength = wavelengths[i];
     }
