@@ -1,7 +1,17 @@
 # pyright: reportUnusedCallResult=false
+import sys
 from collections import deque
 from copy import deepcopy
 from dataclasses import dataclass
+
+
+def printerr(
+    *args,  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]
+    **kwargs,  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]
+):
+    print(
+        *args, file=sys.stderr, **kwargs  # pyright: ignore[reportUnknownArgumentType]
+    )
 
 
 @dataclass
@@ -16,13 +26,16 @@ class Service:
     value: int
     dead = False
 
+    def wavelength_size(self):
+        return self.wavelength_upper - self.wavelength_lower + 1
+
 
 @dataclass
 class Edge:
     id: int
     source: int
     destination: int
-    services: list[Service]
+    services: list[int]
     dead: bool = False
 
 
@@ -72,7 +85,7 @@ def read_environment():
             )
         )
         for edge in service_edges:
-            edges[edge - 1].services.append(services[-1])
+            edges[edge - 1].services.append(services[-1].id)
     return nodes, edges, services
 
 
@@ -80,9 +93,10 @@ INFINITY = float("inf")
 
 
 class Graph:
-    def __init__(self, nodes: list[Node], edges: list[Edge]):
+    def __init__(self, nodes: list[Node], edges: list[Edge], services: list[Service]):
         self.nodes = nodes
         self.edges = edges
+        self.services = services
         # Make undirected edges
         self.edge_map: dict[int, dict[int, Edge]] = {}
 
@@ -103,11 +117,14 @@ class Graph:
 
     def shortest_path(self, service: Service):
         unvisited_nodes = self.nodes.copy()
-        distance_from_start = {
+        distance_from_start: dict[int, float] = {
             node.id: (0 if node.id == service.source else INFINITY)
             for node in self.nodes
         }
         previous_node = {node.id: -1 for node in self.nodes}
+        previous_node_wavelengths: dict[int, list[tuple[int, int]]] = {
+            node.id: [] for node in self.nodes
+        }
 
         while unvisited_nodes:
             current_node = min(
@@ -123,29 +140,99 @@ class Graph:
                     continue
                 new_path = distance_from_start[current_node.id] + 1
                 edge = self.edge_map[current_node.id][neighbor]
+
+                available_wavelengths = self.find_available_wavelengths(
+                    edge, service.wavelength_size()
+                )
+
+                if previous_node[current_node.id] != -1:
+
+                    available_wavelengths = self.merge_wavelenghts(
+                        available_wavelengths,
+                        previous_node_wavelengths[current_node.id],
+                        service.wavelength_size(),
+                    )
+
                 # Check for service wavelength constraints
-                constraint_violated = False
-                for other_service in edge.services:
-                    if (
-                        other_service.wavelength_lower <= service.wavelength_upper
-                        and service.wavelength_lower <= other_service.wavelength_upper
-                    ):
-                        constraint_violated = True
-                        break
+                constraint_violated = len(available_wavelengths) == 0
+
                 if not constraint_violated and new_path < distance_from_start[neighbor]:
                     distance_from_start[neighbor] = new_path
                     previous_node[neighbor] = current_node.id
+                    previous_node_wavelengths[neighbor] = available_wavelengths
             if current_node.id == service.destination:
                 break
 
         if previous_node[service.destination] == -1:
             return False
+        selected_wavelength: tuple[int, int] = previous_node_wavelengths[
+            service.destination
+        ][0]
+        for wavelength in previous_node_wavelengths[service.destination]:
+            # Minimize size of range left over
+            wavelength_size = wavelength[1] - wavelength[0] + 1
+            selected_wavelength_size = (
+                selected_wavelength[1] - selected_wavelength[0] + 1
+            )
+            if wavelength_size < selected_wavelength_size:
+                selected_wavelength = wavelength
+        wavelength_size = service.wavelength_size()
+        service.wavelength_lower = selected_wavelength[0]
+        service.wavelength_upper = selected_wavelength[0] + wavelength_size - 1
+
+        # Reconstruct path
         path: deque[Edge] = deque()
         current_node = service.destination
         while previous_node[current_node] != -1:
             path.appendleft(self.edge_map[previous_node[current_node]][current_node])
             current_node = previous_node[current_node]
         return path
+
+    def find_available_wavelengths(self, edge: Edge, min_size: int):
+        occupied = sorted(
+            [
+                (
+                    self.services[s - 1].wavelength_lower,
+                    self.services[s - 1].wavelength_upper,
+                )
+                for s in edge.services
+            ]
+        )
+        available_wavelengths: list[tuple[int, int]] = []
+        if not occupied:
+            available_wavelengths.append((1, 40))
+            return available_wavelengths
+        current = 1
+        for lower, upper in occupied:
+            if current < lower and lower - current >= min_size:
+                available_wavelengths.append((current, lower - 1))
+            current = max(current, upper + 1)
+        if current <= 40 and 41 - current >= min_size:
+            available_wavelengths.append((current, 40))
+        return available_wavelengths
+
+    def merge_wavelenghts(
+        self, av_1: list[tuple[int, int]], av_2: list[tuple[int, int]], min_size: int
+    ):
+        # Shrink the list of available wavelengths such that only wavelengths available in both lists are kept
+        result: list[tuple[int, int]] = []
+        i, j = 0, 0
+        while i < len(av_1) and j < len(av_2):
+            # Find the overlapping range
+            start = max(av_1[i][0], av_2[j][0])
+            end = min(av_1[i][1], av_2[j][1])
+
+            # If there's an overlap and it meets the minimum size requirement
+            if start <= end and end - start + 1 >= min_size:
+                result.append((start, end))
+
+            # Move to the next range in the list with the smaller end point
+            if av_1[i][1] < av_2[j][1]:
+                i += 1
+            else:
+                j += 1
+
+        return result
 
 
 @dataclass
@@ -156,15 +243,15 @@ class Replan:
 
 def main():
     nodes_o, edges_o, services_o = read_environment()
-    print(0)  # Number of test scenarios
-    # print(2)
-    # print("1 6")
+    print(1)  # Number of test scenarios
+    print(2)
+    print("1 6")
 
     num_scenarios = int(input_c())
 
     for _ in range(num_scenarios):
         services = deepcopy(services_o)
-        graph = Graph(deepcopy(nodes_o), deepcopy(edges_o))
+        graph = Graph(deepcopy(nodes_o), deepcopy(edges_o), services)
         while True:
             broken_edge = int(input_c())
             if broken_edge == -1:
@@ -185,11 +272,14 @@ def main():
                     continue
                 # Remove service from the edges
                 for edge in service.edges:
-                    graph.edges[edge - 1].services.remove(service)
+                    for s in graph.edges[edge - 1].services:
+                        if s == service.id:
+                            graph.edges[edge - 1].services.remove(s)
+                            break
                 # Use up the channels
                 for edge in path:
-                    if service not in edge.services:
-                        edge.services.append(service)
+                    if service.id not in edge.services:
+                        edge.services.append(service.id)
 
                 successful_replans.append(
                     Replan(
