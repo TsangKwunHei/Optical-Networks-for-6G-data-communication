@@ -298,4 +298,5 @@ def main():
                 print(" ".join(f"{e[0]} {e[1]} {e[2]}" for e in replan.edges))
 
 
-main()
+if __name__ == "__main__":
+    main()
