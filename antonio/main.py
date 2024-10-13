@@ -173,17 +173,13 @@ class Graph:
 
         if previous_node[service.destination] == -1:
             return False
+        # Minimize the wasted wavelengths
+        previous_node_wavelengths[service.destination].sort(
+            key=lambda w: w[1] - w[0], reverse=False
+        )
         selected_wavelength: tuple[int, int] = previous_node_wavelengths[
             service.destination
         ][0]
-        for wavelength in previous_node_wavelengths[service.destination]:
-            # Minimize size of range left over
-            wavelength_size = wavelength[1] - wavelength[0] + 1
-            selected_wavelength_size = (
-                selected_wavelength[1] - selected_wavelength[0] + 1
-            )
-            if wavelength_size < selected_wavelength_size:
-                selected_wavelength = wavelength
         wavelength_size = service.wavelength_size()
         service.wavelength_lower = selected_wavelength[0]
         service.wavelength_upper = selected_wavelength[0] + wavelength_size - 1
