@@ -140,14 +140,22 @@ class Graph:
                     continue
                 new_path = distance_from_start[current_node.id] + 1
                 edge = self.edge_map[current_node.id][neighbor]
-
-                available_wavelengths = self.find_available_wavelengths(
-                    edge, service.wavelength_size()
+                occupied = sorted(
+                    [
+                        (
+                            self.services[s - 1].wavelength_lower,
+                            self.services[s - 1].wavelength_upper,
+                        )
+                        for s in edge.services
+                    ]
+                )
+                available_wavelengths = find_available_wavelengths(
+                    occupied, service.wavelength_size()
                 )
 
                 if previous_node[current_node.id] != -1:
 
-                    available_wavelengths = self.merge_wavelenghts(
+                    available_wavelengths = merge_wavelenghts(
                         available_wavelengths,
                         previous_node_wavelengths[current_node.id],
                         service.wavelength_size(),
@@ -188,51 +196,44 @@ class Graph:
             current_node = previous_node[current_node]
         return path
 
-    def find_available_wavelengths(self, edge: Edge, min_size: int):
-        occupied = sorted(
-            [
-                (
-                    self.services[s - 1].wavelength_lower,
-                    self.services[s - 1].wavelength_upper,
-                )
-                for s in edge.services
-            ]
-        )
-        available_wavelengths: list[tuple[int, int]] = []
-        if not occupied:
-            available_wavelengths.append((1, 40))
-            return available_wavelengths
-        current = 1
-        for lower, upper in occupied:
-            if current < lower and lower - current >= min_size:
-                available_wavelengths.append((current, lower - 1))
-            current = max(current, upper + 1)
-        if current <= 40 and 41 - current >= min_size:
-            available_wavelengths.append((current, 40))
+
+def find_available_wavelengths(occupied: list[tuple[int, int]], min_size: int):
+    available_wavelengths: list[tuple[int, int]] = []
+    if not occupied:
+        available_wavelengths.append((1, 40))
         return available_wavelengths
+    current = 1
+    for lower, upper in occupied:
+        if current < lower and lower - current >= min_size:
+            available_wavelengths.append((current, lower - 1))
+        current = max(current, upper + 1)
+    if current <= 40 and 41 - current >= min_size:
+        available_wavelengths.append((current, 40))
+    return available_wavelengths
 
-    def merge_wavelenghts(
-        self, av_1: list[tuple[int, int]], av_2: list[tuple[int, int]], min_size: int
-    ):
-        # Shrink the list of available wavelengths such that only wavelengths available in both lists are kept
-        result: list[tuple[int, int]] = []
-        i, j = 0, 0
-        while i < len(av_1) and j < len(av_2):
-            # Find the overlapping range
-            start = max(av_1[i][0], av_2[j][0])
-            end = min(av_1[i][1], av_2[j][1])
 
-            # If there's an overlap and it meets the minimum size requirement
-            if start <= end and end - start + 1 >= min_size:
-                result.append((start, end))
+def merge_wavelenghts(
+    av_1: list[tuple[int, int]], av_2: list[tuple[int, int]], min_size: int
+):
+    # Shrink the list of available wavelengths such that only wavelengths available in both lists are kept
+    result: list[tuple[int, int]] = []
+    i, j = 0, 0
+    while i < len(av_1) and j < len(av_2):
+        # Find the overlapping range
+        start = max(av_1[i][0], av_2[j][0])
+        end = min(av_1[i][1], av_2[j][1])
 
-            # Move to the next range in the list with the smaller end point
-            if av_1[i][1] < av_2[j][1]:
-                i += 1
-            else:
-                j += 1
+        # If there's an overlap and it meets the minimum size requirement
+        if start <= end and end - start + 1 >= min_size:
+            result.append((start, end))
 
-        return result
+        # Move to the next range in the list with the smaller end point
+        if av_1[i][1] < av_2[j][1]:
+            i += 1
+        else:
+            j += 1
+
+    return result
 
 
 @dataclass
