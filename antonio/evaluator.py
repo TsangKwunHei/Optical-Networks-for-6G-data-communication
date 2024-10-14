@@ -168,7 +168,9 @@ def generate_edges(nodes: list[Node]) -> list[Edge]:
 def new_graph():
     nodes = generate_nodes()
     edges = generate_edges(nodes)
-    return Graph(nodes, edges, [])
+    graph = Graph(nodes, edges, [])
+    generate_services(graph)
+    return graph
 
 
 def generate_services(graph: Graph):
@@ -199,4 +201,3 @@ def generate_services(graph: Graph):
 
 if __name__ == "__main__":
     graph = new_graph()
-    generate_services(graph)
