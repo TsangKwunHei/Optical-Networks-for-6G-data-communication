@@ -50,9 +50,15 @@ class Service:
     source: int
     destination: int
     edges: list[int]
-    starting_wavelength: WavelengthRange
+    wavelengths: list[WavelengthRange]
     value: int
     dead: bool = False
+
+    def wavelength_at(self, edge_id: int, lower: bool) -> int:
+        for i, edge in enumerate(self.edges):
+            if edge == edge_id:
+                return self.wavelengths[i].min if lower else self.wavelengths[i].max
+        raise ValueError("Edge not in service")
 
 
 @dataclass
@@ -91,8 +97,8 @@ class Graph:
                 occupied = sorted(
                     [
                         (
-                            self.services[s - 1].starting_wavelength.min,
-                            self.services[s - 1].starting_wavelength.max,
+                            self.services[s - 1].wavelength_at(edge.id, True),
+                            self.services[s - 1].wavelength_at(edge.id, False),
                         )
                         for s in edge.services
                     ]
@@ -128,18 +134,19 @@ class Graph:
     def validate(self):
         # Ensure that every service is valid
         for service in self.services:
+            if len(service.edges) != len(service.wavelengths):
+                printerr(service.edges, service.wavelengths)
+                raise ValueError("Service wavelengths mismatch edges")
             if service.source < 1 or service.source > len(self.nodes):
                 raise ValueError("Invalid source node")
             if service.destination < 1 or service.destination > len(self.nodes):
                 raise ValueError("Invalid destination node")
-            if (
-                service.starting_wavelength.min <= 0
-                or service.starting_wavelength.max > 40
-            ):
-                raise ValueError("Invalid wavelength range")
             # Skip dead services
             if service.dead:
                 continue
+            # Ensure edges as not repeated
+            if len(service.edges) != len(set(service.edges)):
+                raise ValueError("Repeated edges")
             for edge_id in service.edges:
                 # Ensure that wavelengths don't overlap with other services on the edge
                 edge = self.edges[edge_id - 1]
@@ -147,8 +154,8 @@ class Graph:
                     raise ValueError("Dead edge used")
                 occupied = [
                     (
-                        self.services[s - 1].starting_wavelength.min,
-                        self.services[s - 1].starting_wavelength.max,
+                        self.services[s - 1].wavelength_at(edge_id, True),
+                        self.services[s - 1].wavelength_at(edge_id, False),
                     )
                     for s in edge.services
                     if s != service.id
@@ -156,8 +163,8 @@ class Graph:
 
                 for wl in occupied:
                     if (
-                        wl[0] <= service.starting_wavelength.min <= wl[1]
-                        or wl[0] <= service.starting_wavelength.max <= wl[1]
+                        wl[0] <= service.wavelength_at(edge.id, True) <= wl[1]
+                        or wl[0] <= service.wavelength_at(edge.id, False) <= wl[1]
                     ):
                         print(wl, service)
                         raise ValueError("Wavelength overlap")
@@ -240,9 +247,10 @@ def generate_services(graph: Graph):
             src,
             dest,
             edges,
-            WavelengthRange(lower_wl, lower_wl + wavelength_size),
+            [WavelengthRange(lower_wl, lower_wl + wavelength_size) for _ in edges],
             value,
         )
+        assert len(service.edges) == len(service.wavelengths)
         graph.services.append(service)
         # Assign the service to the edges
         for edge_id in edges:
@@ -264,8 +272,8 @@ if __name__ == "__main__":
             service.source,
             service.destination,
             len(service.edges),
-            service.starting_wavelength.min,
-            service.starting_wavelength.max,
+            service.wavelengths[0].min,
+            service.wavelengths[0].max,
             service.value,
         )
         print(" ".join(str(edge) for edge in service.edges))
@@ -305,6 +313,8 @@ if __name__ == "__main__":
                 raise ValueError("More services replanned than affected")
             for _ in range(n_successful_replans):
                 service_idx, num_edges = map(int, input().split())
+                if service_idx not in affected_services:
+                    raise ValueError("Service not affected")
                 replans = list(map(int, input().split()))
                 assert len(replans) == num_edges * 3  # edge, min, max
                 service = graph.services[service_idx - 1]
@@ -314,7 +324,13 @@ if __name__ == "__main__":
                 service.edges = replans[::3]
                 for edge in service.edges:
                     graph.edges[edge - 1].services.append(service.id)
-                service.starting_wavelength = WavelengthRange(replans[1], replans[2])
+
+                service.wavelengths = []
+                for i in range(0, len(replans) // 3):
+
+                    service.wavelengths.append(
+                        WavelengthRange(replans[i * 3 + 1], replans[i * 3 + 2])
+                    )
             graph.validate()
         total_score += sum(
             service.value for service in graph.services if not service.dead
