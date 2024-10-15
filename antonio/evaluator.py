@@ -6,7 +6,7 @@ from main import find_available_wavelengths, merge_wavelenghts
 
 N_EDGES = 1000
 N_NODES = 100
-N_SERVICES = 1000
+N_SERVICES = 700
 
 
 @dataclass
@@ -71,6 +71,9 @@ class Graph:
             if edge.source not in edges:
                 edges[edge.source] = {}
             edges[edge.source][edge.destination] = edge
+            if edge.destination not in edges:
+                edges[edge.destination] = {}
+            edges[edge.destination][edge.source] = edge
         while unvisited_nodes:
             current = min(unvisited_nodes, key=lambda node: distances[node.id])
             unvisited_nodes.remove(current)
@@ -90,10 +93,10 @@ class Graph:
                         for s in edge.services
                     ]
                 )
-                wl = find_available_wavelengths(occupied, wavelength_size)
+                wl = find_available_wavelengths(occupied, wavelength_size + 1)
                 pwl = previous_wl.get(current.id)
                 if pwl is not None:
-                    wl = merge_wavelenghts(wl, pwl, wavelength_size)
+                    wl = merge_wavelenghts(wl, pwl, wavelength_size + 1)
                 if not wl:
                     continue
 
@@ -117,6 +120,43 @@ class Graph:
         # Sort available wavelengths by size (smallest first)
         available_wl.sort(key=lambda wl: wl[1] - wl[0])
         return path, available_wl[0][0]
+
+    def validate(self):
+        # Ensure that every service is valid
+        for service in self.services:
+            if service.source < 1 or service.source > len(self.nodes):
+                raise ValueError("Invalid source node")
+            if service.destination < 1 or service.destination > len(self.nodes):
+                raise ValueError("Invalid destination node")
+            if (
+                service.starting_wavelength.min <= 0
+                or service.starting_wavelength.max > 40
+            ):
+                raise ValueError("Invalid wavelength range")
+            if service.value < 0:
+                raise ValueError("Invalid value")
+            for edge_id in service.edges:
+                # Ensure that wavelengths don't overlap with other services on the edge
+                edge = self.edges[edge_id - 1]
+                occupied = [
+                    (
+                        self.services[s - 1].starting_wavelength.min,
+                        self.services[s - 1].starting_wavelength.max,
+                    )
+                    for s in edge.services
+                    if s != service.id
+                ]
+
+                for wl in occupied:
+                    if (
+                        wl[0] <= service.starting_wavelength.min <= wl[1]
+                        or wl[0] <= service.starting_wavelength.max <= wl[1]
+                    ):
+                        print(wl, service)
+                        raise ValueError("Wavelength overlap")
+                # Ensure that the edge has the service
+                if service.id not in edge.services:
+                    raise ValueError("Service not in edge")
 
 
 def generate_nodes():
@@ -144,7 +184,6 @@ def generate_edges(nodes: list[Node]) -> list[Edge]:
             destination = randint(1, len(nodes))
         edges[node.id][destination] = Edge(0, node.id, destination, [])
         edges[destination] = {}
-        edges[destination][node.id] = Edge(0, destination, node.id, [])
     for _ in range(N_EDGES - 2 * len(nodes)):
         source = randint(1, len(nodes))
         destination = randint(1, len(nodes))
@@ -152,7 +191,6 @@ def generate_edges(nodes: list[Node]) -> list[Edge]:
             continue
         if destination not in edges[source]:
             edges[source][destination] = Edge(0, source, destination, [])
-            edges[destination][source] = Edge(0, destination, source, [])
     edges_list: list[Edge] = []
     for edges_dict in edges.values():
         edges_list.extend(edges_dict.values())
@@ -201,3 +239,5 @@ def generate_services(graph: Graph):
 
 if __name__ == "__main__":
     graph = new_graph()
+    print(len(graph.nodes), len(graph.edges), len(graph.services))
+    graph.validate()
