@@ -1,6 +1,5 @@
 # pyright: reportUnusedCallResult=false
 import sys
-from collections import deque
 from copy import deepcopy
 from dataclasses import dataclass
 
@@ -97,22 +96,26 @@ class Graph:
         self.nodes = nodes
         self.edges = edges
         self.services = services
-        # Make undirected edges
-        self.edge_map: dict[int, dict[int, Edge]] = {}
+        # source -> destination -> list[edge]
+        self.edge_map: dict[int, dict[int, list[Edge]]] = {}
 
         for edge in edges:
             if edge.source not in self.edge_map:
                 self.edge_map[edge.source] = {}
             if edge.destination not in self.edge_map:
                 self.edge_map[edge.destination] = {}
+            if self.edge_map[edge.source].get(edge.destination) is None:
+                self.edge_map[edge.source][edge.destination] = []
+            if self.edge_map[edge.destination].get(edge.source) is None:
+                self.edge_map[edge.destination][edge.source] = []
 
-            self.edge_map[edge.source][edge.destination] = edge
-            self.edge_map[edge.destination][edge.source] = edge
+            self.edge_map[edge.source][edge.destination].append(edge)
+            self.edge_map[edge.destination][edge.source].append(edge)
 
         # Ensure that the edges are undirected
         e = edges[0]
-        assert id(self.edge_map[e.source][e.destination]) == id(
-            self.edge_map[e.destination][e.source]
+        assert id(self.edge_map[e.source][e.destination][0]) == id(
+            self.edge_map[e.destination][e.source][0]
         )
 
     def shortest_path(self, service: Service):
@@ -122,6 +125,7 @@ class Graph:
             for node in self.nodes
         }
         previous_node = {node.id: -1 for node in self.nodes}
+        previous_edge = {node.id: -1 for node in self.nodes}
         previous_node_wavelengths: dict[int, list[tuple[int, int]]] = {
             node.id: [] for node in self.nodes
         }
@@ -135,39 +139,43 @@ class Graph:
             if distance_from_start[current_node.id] == INFINITY:
                 break
 
-            for neighbor in self.edge_map[current_node.id]:
-                if self.edge_map[current_node.id][neighbor].dead:
-                    continue
-                new_path = distance_from_start[current_node.id] + 1
-                edge = self.edge_map[current_node.id][neighbor]
-                occupied = sorted(
-                    [
-                        (
-                            self.services[s - 1].wavelength_lower,
-                            self.services[s - 1].wavelength_upper,
-                        )
-                        for s in edge.services
-                    ]
-                )
-                available_wavelengths = find_available_wavelengths(
-                    occupied, service.wavelength_size()
-                )
-
-                if previous_node[current_node.id] != -1:
-
-                    available_wavelengths = merge_wavelenghts(
-                        available_wavelengths,
-                        previous_node_wavelengths[current_node.id],
-                        service.wavelength_size(),
+            for neighbor_node, neighbors in self.edge_map[current_node.id].items():
+                for edge in neighbors:
+                    if edge.dead:
+                        continue
+                    new_path = distance_from_start[current_node.id] + 1
+                    occupied = sorted(
+                        [
+                            (
+                                self.services[s - 1].wavelength_lower,
+                                self.services[s - 1].wavelength_upper,
+                            )
+                            for s in edge.services
+                        ]
+                    )
+                    available_wavelengths = find_available_wavelengths(
+                        occupied, service.wavelength_size()
                     )
 
-                # Check for service wavelength constraints
-                constraint_violated = len(available_wavelengths) == 0
+                    if previous_node[current_node.id] != -1:
 
-                if not constraint_violated and new_path < distance_from_start[neighbor]:
-                    distance_from_start[neighbor] = new_path
-                    previous_node[neighbor] = current_node.id
-                    previous_node_wavelengths[neighbor] = available_wavelengths
+                        available_wavelengths = merge_wavelenghts(
+                            available_wavelengths,
+                            previous_node_wavelengths[current_node.id],
+                            service.wavelength_size(),
+                        )
+
+                    # Check for service wavelength constraints
+                    constraint_violated = len(available_wavelengths) == 0
+
+                    if (
+                        not constraint_violated
+                        and new_path < distance_from_start[neighbor_node]
+                    ):
+                        distance_from_start[neighbor_node] = new_path
+                        previous_node[neighbor_node] = current_node.id
+                        previous_edge[neighbor_node] = edge.id
+                        previous_node_wavelengths[neighbor_node] = available_wavelengths
             if current_node.id == service.destination:
                 break
 
@@ -185,11 +193,12 @@ class Graph:
         service.wavelength_upper = selected_wavelength[0] + wavelength_size - 1
 
         # Reconstruct path
-        path: deque[Edge] = deque()
+        path: list[int] = []
         current_node = service.destination
-        while previous_node[current_node] != -1:
-            path.appendleft(self.edge_map[previous_node[current_node]][current_node])
+        while previous_edge[current_node] != -1:
+            path.append(previous_edge[current_node])
             current_node = previous_node[current_node]
+        path.reverse()
         return path
 
 
@@ -275,6 +284,7 @@ def main():
                             break
                 # Use up the channels
                 for edge in path:
+                    edge = graph.edges[edge - 1]
                     if service.id not in edge.services:
                         edge.services.append(service.id)
 
@@ -282,12 +292,12 @@ def main():
                     Replan(
                         service_idx=service.id,
                         edges=[
-                            (e.id, service.wavelength_lower, service.wavelength_upper)
+                            (e, service.wavelength_lower, service.wavelength_upper)
                             for e in path
                         ],
                     )
                 )
-                service.edges = [edge.id for edge in path]
+                service.edges = [edge for edge in path]
                 service.dead = False
             print(len(successful_replans))
             for replan in successful_replans:

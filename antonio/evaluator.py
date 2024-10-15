@@ -175,14 +175,14 @@ def generate_nodes():
 
 
 def generate_edges(nodes: list[Node]) -> list[Edge]:
-    edges: dict[int, dict[int, Edge]] = {}
+    edges: dict[int, dict[int, list[Edge]]] = {}
     # Ensure that every node has at least one edge
     for node in nodes:
         edges[node.id] = {}
         destination = randint(1, len(nodes))
         while destination == node.id:
             destination = randint(1, len(nodes))
-        edges[node.id][destination] = Edge(0, node.id, destination, [])
+        edges[node.id][destination] = [Edge(0, node.id, destination, [])]
         edges[destination] = {}
     for _ in range(N_EDGES - 2 * len(nodes)):
         source = randint(1, len(nodes))
@@ -190,10 +190,14 @@ def generate_edges(nodes: list[Node]) -> list[Edge]:
         if source == destination:
             continue
         if destination not in edges[source]:
-            edges[source][destination] = Edge(0, source, destination, [])
+            edges[source][destination] = []
+        edges[source][destination].append(Edge(0, source, destination, []))
+
     edges_list: list[Edge] = []
     for edges_dict in edges.values():
-        edges_list.extend(edges_dict.values())
+        edges_list.extend(
+            [edge for edge_list in edges_dict.values() for edge in edge_list]
+        )
 
     # Ensure that the edges are sorted by id and contiguous
     edges_list.sort(key=lambda edge: edge.id)
@@ -216,6 +220,8 @@ def generate_services(graph: Graph):
     for _ in range(1, N_SERVICES + 1):
         src = randint(1, len(graph.nodes))
         dest = randint(1, len(graph.nodes))
+        if src == dest:
+            continue
         wavelength_size = randint(1, 30)
         value = randint(0, 100000)
         edges = graph.pathfind(src, dest, wavelength_size)
@@ -239,5 +245,19 @@ def generate_services(graph: Graph):
 
 if __name__ == "__main__":
     graph = new_graph()
-    print(len(graph.nodes), len(graph.edges), len(graph.services))
     graph.validate()
+    print(len(graph.nodes), len(graph.edges))
+    print(" ".join(str(len(node.converters)) for node in graph.nodes))
+    for edge in graph.edges:
+        print(edge.source, edge.destination)
+    print(len(graph.services))
+    for service in graph.services:
+        print(
+            service.source,
+            service.destination,
+            len(service.edges),
+            service.starting_wavelength.min,
+            service.starting_wavelength.max,
+            service.value,
+        )
+        print(" ".join(str(edge) for edge in service.edges))
