@@ -178,15 +178,12 @@ double FitnessFunction(
 
   // Fitness considers path length and number of wavelength changes (channel
   // conversions)
-  double service_weight = srv.V / 1000.0;
   int num_conversions = 0;
   for (const auto &[node, count] : converters_needed) {
     num_conversions += count;
   }
-  return static_cast<double>(path.size()) + num_conversions * 10.0 * service_weight;
+  return static_cast<double>(path.size()) + num_conversions * 10.0;
 }
-
-
 
 // Function to generate an initial chromosome for a service using BFS for a
 // single path
