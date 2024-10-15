@@ -7,7 +7,7 @@ from dataclasses import dataclass
 def printerr(
     *args,  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]
     **kwargs,  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]
-):
+) -> None:
     print(
         *args, file=sys.stderr, **kwargs  # pyright: ignore[reportUnknownArgumentType]
     )

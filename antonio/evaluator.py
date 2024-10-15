@@ -3,6 +3,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from random import randint
 
+from main import printerr  # pyright: ignore[reportUnknownVariableType]
 from main import find_available_wavelengths, merge_wavelenghts
 
 N_EDGES = 1000
@@ -282,6 +283,7 @@ if __name__ == "__main__":
             set([randint(1, n_edges) for _ in range(n_edge_failures)])
         )
     print(len(test_scenarios))
+    total_score = 0
     original_graph = graph
     for scenario in test_scenarios:
         graph = deepcopy(original_graph)
@@ -311,5 +313,9 @@ if __name__ == "__main__":
                     graph.edges[edge - 1].services.append(service.id)
                 service.starting_wavelength = WavelengthRange(replans[1], replans[2])
         graph.validate()
+        total_score += sum(
+            service.value for service in graph.services if not service.dead
+        )
 
         print(-1)
+    printerr(total_score)
