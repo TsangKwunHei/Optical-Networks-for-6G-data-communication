@@ -137,11 +137,14 @@ class Graph:
                 or service.starting_wavelength.max > 40
             ):
                 raise ValueError("Invalid wavelength range")
-            if service.value < 0:
-                raise ValueError("Invalid value")
+            # Skip dead services
+            if service.dead:
+                continue
             for edge_id in service.edges:
                 # Ensure that wavelengths don't overlap with other services on the edge
                 edge = self.edges[edge_id - 1]
+                if edge.dead:
+                    raise ValueError("Dead edge used")
                 occupied = [
                     (
                         self.services[s - 1].starting_wavelength.min,
