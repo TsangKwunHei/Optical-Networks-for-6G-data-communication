@@ -1,10 +1,57 @@
 # pyright: reportImplicitRelativeImport=false
+import sys
 from copy import deepcopy
 from dataclasses import dataclass
 from random import randint
 
-from main import printerr  # pyright: ignore[reportUnknownVariableType]
-from main import find_available_wavelengths, merge_wavelenghts
+
+def printerr(
+    *args,  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]
+    **kwargs,  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]
+) -> None:
+    print(
+        *args, file=sys.stderr, **kwargs  # pyright: ignore[reportUnknownArgumentType]
+    )
+
+
+def find_available_wavelengths(occupied: list[tuple[int, int]], min_size: int):
+    available_wavelengths: list[tuple[int, int]] = []
+    if not occupied:
+        available_wavelengths.append((1, 40))
+        return available_wavelengths
+    current = 1
+    for lower, upper in occupied:
+        if current < lower and lower - current >= min_size:
+            available_wavelengths.append((current, lower - 1))
+        current = max(current, upper + 1)
+    if current <= 40 and 41 - current >= min_size:
+        available_wavelengths.append((current, 40))
+    return available_wavelengths
+
+
+def merge_wavelenghts(
+    av_1: list[tuple[int, int]], av_2: list[tuple[int, int]], min_size: int
+):
+    # Shrink the list of available wavelengths such that only wavelengths available in both lists are kept
+    result: list[tuple[int, int]] = []
+    i, j = 0, 0
+    while i < len(av_1) and j < len(av_2):
+        # Find the overlapping range
+        start = max(av_1[i][0], av_2[j][0])
+        end = min(av_1[i][1], av_2[j][1])
+
+        # If there's an overlap and it meets the minimum size requirement
+        if start <= end and end - start + 1 >= min_size:
+            result.append((start, end))
+
+        # Move to the next range in the list with the smaller end point
+        if av_1[i][1] < av_2[j][1]:
+            i += 1
+        else:
+            j += 1
+
+    return result
+
 
 N_EDGES = 1000
 N_NODES = 100
