@@ -108,11 +108,24 @@ class Service:
         raise ValueError("Edge not in service")
 
 
-@dataclass
 class Graph:
     nodes: list[Node]
     edges: list[Edge]
     services: list[Service]
+    edges_map: dict[int, dict[int, Edge]]
+
+    def __init__(self, nodes: list[Node], edges: list[Edge], services: list[Service]):
+        self.nodes = nodes
+        self.edges = edges
+        self.services = services
+        self.edges_map = {}
+        for edge in edges:
+            if edge.source not in self.edges_map:
+                self.edges_map[edge.source] = {}
+            self.edges_map[edge.source][edge.destination] = edge
+            if edge.destination not in self.edges_map:
+                self.edges_map[edge.destination] = {}
+            self.edges_map[edge.destination][edge.source] = edge
 
     def pathfind(self, src: int, dest: int, wavelength_size: int):
         """
@@ -123,24 +136,18 @@ class Graph:
         distances[src] = 0
         previous = {node.id: -1 for node in self.nodes}
         previous_wl: dict[int, list[tuple[int, int]]] = {}
-        edges: dict[int, dict[int, Edge]] = {}
-        for edge in self.edges:
-            if edge.source not in edges:
-                edges[edge.source] = {}
-            edges[edge.source][edge.destination] = edge
-            if edge.destination not in edges:
-                edges[edge.destination] = {}
-            edges[edge.destination][edge.source] = edge
+        edges_map = self.edges_map
+
         while unvisited_nodes:
             current = min(unvisited_nodes, key=lambda node: distances[node.id])
             unvisited_nodes.remove(current)
             if current.id == dest:
                 break
 
-            for neighbor in edges[current.id]:
+            for neighbor in edges_map[current.id]:
                 alt = distances[current.id] + 1
                 # Ensure that the edge still has available wavelengths
-                edge = edges[current.id][neighbor]
+                edge = edges_map[current.id][neighbor]
                 occupied = sorted(
                     [
                         (
@@ -167,7 +174,7 @@ class Graph:
         path: list[int] = []
         current = dest
         while previous[current] != -1:
-            path.append(edges[previous[current]][current].id)
+            path.append(edges_map[previous[current]][current].id)
             current = previous[current]
         path.reverse()
         # Take the merged available wavelengths
