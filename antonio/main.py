@@ -303,6 +303,7 @@ def main():
             for replan in successful_replans:
                 print(replan.service_idx, len(replan.edges))
                 print(" ".join(f"{e[0]} {e[1]} {e[2]}" for e in replan.edges))
+    printerr("Done")
 
 
 if __name__ == "__main__":

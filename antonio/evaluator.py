@@ -1,4 +1,5 @@
 # pyright: reportImplicitRelativeImport=false
+from copy import deepcopy
 from dataclasses import dataclass
 from random import randint
 
@@ -39,6 +40,7 @@ class Edge:
     source: int
     destination: int
     services: list[int]
+    dead: bool = False
 
 
 @dataclass
@@ -49,6 +51,7 @@ class Service:
     edges: list[int]
     starting_wavelength: WavelengthRange
     value: int
+    dead: bool = False
 
 
 @dataclass
@@ -244,6 +247,7 @@ def generate_services(graph: Graph):
 
 
 if __name__ == "__main__":
+    ### ENVIRONMENT
     graph = new_graph()
     graph.validate()
     print(len(graph.nodes), len(graph.edges))
@@ -261,3 +265,51 @@ if __name__ == "__main__":
             service.value,
         )
         print(" ".join(str(edge) for edge in service.edges))
+    n_edges = len(graph.edges)
+    n_nodes = len(graph.nodes)
+    n_services = len(graph.services)
+    ### Read user privded scenarios
+    n_scenarios = int(input())
+    test_scenarios: list[set[int]] = []
+    for _ in range(n_scenarios):
+        n_edge_failures = int(input())
+        test_scenarios.append(set(map(int, input().split())))
+        assert len(test_scenarios[-1]) == n_edge_failures
+    n_generated_scenarios = randint(1, 100)
+    for _ in range(n_generated_scenarios):
+        n_edge_failures = randint(1, 60)
+        test_scenarios.append(
+            set([randint(1, n_edges) for _ in range(n_edge_failures)])
+        )
+    print(len(test_scenarios))
+    original_graph = graph
+    for scenario in test_scenarios:
+        graph = deepcopy(original_graph)
+        for edge in scenario:
+            print(edge)
+            graph.edges[edge - 1].dead = True
+            affected_services = [
+                service.id
+                for service in graph.services
+                if edge in service.edges and not service.dead
+            ]
+            for affected_service in affected_services:
+                graph.services[affected_service - 1].dead = True
+            n_successful_replans = int(input())
+            if n_successful_replans > len(affected_services):
+                raise ValueError("More services replanned than affected")
+            for _ in range(n_successful_replans):
+                service_idx, num_edges = map(int, input().split())
+                replans = list(map(int, input().split()))
+                assert len(replans) == num_edges * 3  # edge, min, max
+                service = graph.services[service_idx - 1]
+                service.dead = False
+                for edge in service.edges:
+                    graph.edges[edge - 1].services.remove(service.id)
+                service.edges = replans[::3]
+                for edge in service.edges:
+                    graph.edges[edge - 1].services.append(service.id)
+                service.starting_wavelength = WavelengthRange(replans[1], replans[2])
+        graph.validate()
+
+        print(-1)
