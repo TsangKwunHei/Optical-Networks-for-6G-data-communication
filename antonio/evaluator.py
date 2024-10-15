@@ -312,7 +312,7 @@ if __name__ == "__main__":
                 for edge in service.edges:
                     graph.edges[edge - 1].services.append(service.id)
                 service.starting_wavelength = WavelengthRange(replans[1], replans[2])
-        graph.validate()
+            graph.validate()
         total_score += sum(
             service.value for service in graph.services if not service.dead
         )
