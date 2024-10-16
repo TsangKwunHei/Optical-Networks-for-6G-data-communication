@@ -126,9 +126,6 @@ class Graph:
         }
         previous_node = {node.id: -1 for node in self.nodes}
         previous_edge = {node.id: -1 for node in self.nodes}
-        previous_node_wavelengths: dict[int, list[tuple[int, int]]] = {
-            node.id: [] for node in self.nodes
-        }
 
         while unvisited_nodes:
             current_node = min(
@@ -144,29 +141,20 @@ class Graph:
                     if edge.dead:
                         continue
                     new_path = distance_from_start[current_node.id] + 1
-                    occupied = sorted(
-                        [
-                            (
-                                self.services[s - 1].wavelength_lower,
-                                self.services[s - 1].wavelength_upper,
-                            )
-                            for s in edge.services
-                        ]
-                    )
-                    available_wavelengths = find_available_wavelengths(
-                        occupied, service.wavelength_size()
-                    )
 
-                    if previous_node[current_node.id] != -1:
-
-                        available_wavelengths = merge_wavelenghts(
-                            available_wavelengths,
-                            previous_node_wavelengths[current_node.id],
-                            service.wavelength_size(),
-                        )
-
-                    # Check for service wavelength constraints
-                    constraint_violated = len(available_wavelengths) == 0
+                    constraint_violated = False
+                    for other_service in edge.services:
+                        # Check for overlapping wavelengths
+                        if other_service == service.id:
+                            continue
+                        other_service = self.services[other_service - 1]
+                        if (
+                            other_service.wavelength_lower <= service.wavelength_upper
+                            and other_service.wavelength_upper
+                            >= service.wavelength_lower
+                        ):
+                            constraint_violated = True
+                            break
 
                     if (
                         not constraint_violated
@@ -175,22 +163,12 @@ class Graph:
                         distance_from_start[neighbor_node] = new_path
                         previous_node[neighbor_node] = current_node.id
                         previous_edge[neighbor_node] = edge.id
-                        previous_node_wavelengths[neighbor_node] = available_wavelengths
+                        # previous_node_wavelengths[neighbor_node] = available_wavelengths
             if current_node.id == service.destination:
                 break
 
         if previous_node[service.destination] == -1:
             return False
-        # Minimize the wasted wavelengths
-        previous_node_wavelengths[service.destination].sort(
-            key=lambda w: w[1] - w[0], reverse=False
-        )
-        selected_wavelength: tuple[int, int] = previous_node_wavelengths[
-            service.destination
-        ][0]
-        wavelength_size = service.wavelength_size()
-        service.wavelength_lower = selected_wavelength[0]
-        service.wavelength_upper = selected_wavelength[0] + wavelength_size - 1
 
         # Reconstruct path
         path: list[int] = []
@@ -200,45 +178,6 @@ class Graph:
             current_node = previous_node[current_node]
         path.reverse()
         return path
-
-
-def find_available_wavelengths(occupied: list[tuple[int, int]], min_size: int):
-    available_wavelengths: list[tuple[int, int]] = []
-    if not occupied:
-        available_wavelengths.append((1, 40))
-        return available_wavelengths
-    current = 1
-    for lower, upper in occupied:
-        if current < lower and lower - current >= min_size:
-            available_wavelengths.append((current, lower - 1))
-        current = max(current, upper + 1)
-    if current <= 40 and 41 - current >= min_size:
-        available_wavelengths.append((current, 40))
-    return available_wavelengths
-
-
-def merge_wavelenghts(
-    av_1: list[tuple[int, int]], av_2: list[tuple[int, int]], min_size: int
-):
-    # Shrink the list of available wavelengths such that only wavelengths available in both lists are kept
-    result: list[tuple[int, int]] = []
-    i, j = 0, 0
-    while i < len(av_1) and j < len(av_2):
-        # Find the overlapping range
-        start = max(av_1[i][0], av_2[j][0])
-        end = min(av_1[i][1], av_2[j][1])
-
-        # If there's an overlap and it meets the minimum size requirement
-        if start <= end and end - start + 1 >= min_size:
-            result.append((start, end))
-
-        # Move to the next range in the list with the smaller end point
-        if av_1[i][1] < av_2[j][1]:
-            i += 1
-        else:
-            j += 1
-
-    return result
 
 
 @dataclass

@@ -185,6 +185,21 @@ class Graph:
         available_wl.sort(key=lambda wl: wl[1] - wl[0])
         return path, available_wl[0][0]
 
+    def wavelength_check(self, edge_id: int, wl: WavelengthRange):
+        edge = self.edges[edge_id - 1]
+        occupied = [
+            (
+                self.services[s - 1].wavelength_at(edge_id, True),
+                self.services[s - 1].wavelength_at(edge_id, False),
+            )
+            for s in edge.services
+            if s != service.id
+        ]
+        for lower, upper in occupied:
+            if lower <= wl.min <= upper or lower <= wl.max <= upper:
+                return False
+        return True
+
     def validate(self):
         # Ensure that every service is valid
         for service in self.services:
@@ -220,7 +235,7 @@ class Graph:
                         wl[0] <= service.wavelength_at(edge.id, True) <= wl[1]
                         or wl[0] <= service.wavelength_at(edge.id, False) <= wl[1]
                     ):
-                        print(wl, service)
+                        printerr(wl, service)
                         raise ValueError("Wavelength overlap")
                 # Ensure that the edge has the service
                 if service.id not in edge.services:
@@ -372,6 +387,20 @@ if __name__ == "__main__":
                 replans = list(map(int, input().split()))
                 assert len(replans) == num_edges * 3  # edge, min, max
                 service = graph.services[service_idx - 1]
+                # Before we update the service, check the edge and wavelength constraints
+                for i in range(0, len(replans) // 3):
+                    edge = replans[i * 3]
+                    wl = WavelengthRange(replans[i * 3 + 1], replans[i * 3 + 2])
+                    if not graph.wavelength_check(edge, wl):
+                        printerr(service_idx)
+                        printerr("Wavelength range:", wl)
+                        for s in graph.edges[edge - 1].services:
+                            printerr(
+                                s,
+                                graph.services[s - 1].wavelength_at(edge, True),
+                                graph.services[s - 1].wavelength_at(edge, False),
+                            )
+                        raise ValueError("Wavelength overlap")
                 service.dead = False
                 for edge in service.edges:
                     graph.edges[edge - 1].services.remove(service.id)

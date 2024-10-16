@@ -1,5 +1,6 @@
 # pyright: basic
 import subprocess
+import sys
 import threading
 
 
@@ -17,9 +18,11 @@ def print_stderr(process, prefix):
     process.stderr.close()
 
 
+solver = sys.argv[1:]
+
 # Start the two Python scripts
 process1 = subprocess.Popen(
-    ["python3", "main.py"],
+    solver,
     stdout=subprocess.PIPE,
     stdin=subprocess.PIPE,
     stderr=subprocess.PIPE,
