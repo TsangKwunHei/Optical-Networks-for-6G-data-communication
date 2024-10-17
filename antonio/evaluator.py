@@ -2,7 +2,9 @@
 import sys
 from copy import deepcopy
 from dataclasses import dataclass
-from random import randint
+from random import randint, seed
+
+seed(0)
 
 
 def printerr(
