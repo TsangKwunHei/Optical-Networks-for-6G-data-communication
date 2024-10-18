@@ -30,9 +30,23 @@ def main():
         m_i = int(data[idx]); idx += 1 # num slice packets 
         SliceBW_i = float(data[idx]); idx += 1  # in Gbps
         UBD_i = int(data[idx]); idx += 1  # slice delay tolerance
+        '''
+            Slice   ts(Arrival) pktsize
+            1      
+            2
+        '''
         # sequence information about the indiviual slice
         packets = []
         for pkt_id in range(m_i):
+            '''
+            s.p     UBD         ts      Deadline
+            s1.p1   30000       0       30000
+            s2.p1   30000       0       30000
+            s1.p2   30000       1000    31000
+            s2.p2   30000       1000    31000
+            s1.p3   30000       3000    33000
+            s2.p3   30000       3000    33000
+            '''
             ts = int(data[idx]); idx += 1  # arrival time in ns
             pkt_size = int(data[idx]); idx += 1  # in bits
             deadline = ts + UBD_i
@@ -140,10 +154,22 @@ def main():
             s2.p3   5       3000
             '''
             pkt = all_packets[packet_idx]
+
+            # heapq.heappush(list, tuple(priority, packet))  
             # min-heap (smallest always at top)
+            # push 1 tuple into heap at once
+            # heapq sorts by the first element (deadline)
             heapq.heappush(heap, (get_priority(pkt), pkt))
             packet_idx += 1
 
+        '''
+        if heap is not empty
+             If there are still packets remaining to be processed
+             Advances the current_time to the maximum of:
+             1 current time,
+             2 timestamp of the next packet
+             3 time the port is available  
+        '''
         if not heap:
             # No packets to schedule, advance time
             if packet_idx < total_packets:
@@ -153,6 +179,15 @@ def main():
             continue
 
         # Pop the packet with the highest priority
+        ''' For Example input, this'll be run 6 times
+        s.p     idx     ts      Deadline    Pop_order   s
+        s1.p1   0       0       30000       1           1
+        s2.p1   1       0       30000       2           2
+        s1.p2   2       1000    31000       3           1
+        s2.p2   3       1000    31000       4           2
+        s1.p3   4       3000    33000       5           1
+        s2.p3   5       3000    33000       6           2
+        '''
         _, pkt = heapq.heappop(heap)
         slice_id = pkt['slice_id']
         s = slices[slice_id]
@@ -182,10 +217,18 @@ def main():
         # Determine earliest possible departure time
         '''Experiment_Result : 
         deleting current_time & s['last_te'] doesn't make changes to score or casue error,
-         suggesting they're not used as decision variable at any given peroid'''
+          they're not used as decision variable at any given peroid'''
         te_candidate = max(current_time, pkt['ts'], s['last_te'], port_available_time)
         te = math.ceil(te_candidate)
+        '''Constraint 1. 
+        Scheduling output sequence must meet the port bandwidth constraint (PortBW). 
+        the following requirements must be met.
+            {te_{k,m} - te_{i,j}} => PktSize_{i,j}/PortBW  
 
+        te_{i,j}        leave time of previous packet
+        te_{k,m}        leave time of next packet 
+        PktSize_{i,j}   size of the processing Packet 
+        '''
         # Calculate transmission time
         transmission_time = math.ceil(pkt['pkt_size'] / PortBW)
 
@@ -197,6 +240,15 @@ def main():
         s['last_te'] = te
 
         # Update slice's metrics
+        ''' 3 Output bandwidth constraint for the ith slice (SliceBW_i)
+    
+        PacketSize_i/ te_{i,m} - ts_{i,1} => SliceBW_i * 0.95
+        
+        PacketSize_i    sum of all packetsize in a slice
+        te_{i,m}        departure time of the last packet in the ith slice
+        ts_{i,1}        arrival time of the first packet in the ith slice is  
+        SliceBW ranges from 0.01Gbps to 10Gbps.
+        '''
         s['total_bits_sent'] += pkt['pkt_size']
         delay = te - pkt['ts']
         if delay > s['max_delay']:
