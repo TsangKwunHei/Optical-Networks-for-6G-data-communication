@@ -353,6 +353,7 @@ if __name__ == "__main__":
     n_services = len(graph.services)
     ### Read user privded scenarios
     n_scenarios = int(input())
+    printerr("User provided", n_scenarios, "scenarios")
     test_scenarios: list[set[int]] = []
     for _ in range(n_scenarios):
         n_edge_failures = int(input())

@@ -185,58 +185,91 @@ class Replan:
     edges: list[tuple[int, int, int]]
 
 
+def get_replans(graph: Graph, broken_edge: int):
+    # Find services affected by the broken edge
+    affected_services: list[Service] = []
+    for service in graph.services:
+        if not service.dead and broken_edge in service.edges:
+            service.dead = True
+            affected_services.append(service)
+    # Sort services by value (descending)
+    affected_services.sort(key=lambda s: s.value, reverse=True)
+    successful_replans: list[Replan] = []
+    for service in affected_services:
+        path = graph.shortest_path(service)
+        if path is False:
+            continue
+        # Remove service from the edges
+        for edge in service.edges:
+            for s in graph.edges[edge - 1].services:
+                if s == service.id:
+                    graph.edges[edge - 1].services.remove(s)
+                    break
+        # Use up the channels
+        for edge in path:
+            edge = graph.edges[edge - 1]
+            if service.id not in edge.services:
+                edge.services.append(service.id)
+
+        successful_replans.append(
+            Replan(
+                service_idx=service.id,
+                edges=[
+                    (e, service.wavelength_lower, service.wavelength_upper)
+                    for e in path
+                ],
+            )
+        )
+        service.edges = [edge for edge in path]
+        service.dead = False
+    return successful_replans, affected_services
+
+
+def get_recovery_rate(graph: Graph, edge: Edge) -> float:
+    successful_replans, affected_services = get_replans(graph, edge.id)
+    return sum(
+        graph.services[s.service_idx - 1].value for s in successful_replans
+    ) / sum(s.value for s in affected_services)
+
+
 def main():
     nodes_o, edges_o, services_o = read_environment()
-    print(0)  # Number of test scenarios
-    # print(2)
-    # print("1 6")
+    graph_o = Graph(nodes_o, edges_o, services_o)
+    # Generate test scenarios by finding edges with highest recovery rate
+    test_scenarios: list[list[int]] = []
+    edges = deepcopy(edges_o)
+    edges.sort(
+        key=lambda e: sum(services_o[s - 1].value for s in e.services), reverse=True
+    )
+    printerr("Total edges:", len(edges))
+    edges = edges[: len(edges) // 2]
+    printerr("Edges:", len(edges))
+    # Now sort by recovery rate
+    edges.sort(
+        key=lambda e: get_recovery_rate(deepcopy(graph_o), e),
+        reverse=True,
+    )
+    edges = edges[: min(29, len(edges) // 4)]
+    for edge in edges:
+        test_scenarios.append([edge.id])
+
+    print(len(test_scenarios))  # Number of test scenarios
+    for scenario in test_scenarios:
+        print(len(scenario))
+        print(" ".join(str(e) for e in scenario))
 
     num_scenarios = int(input_c())
 
     for _ in range(num_scenarios):
-        services = deepcopy(services_o)
-        graph = Graph(deepcopy(nodes_o), deepcopy(edges_o), services)
+        graph = deepcopy(graph_o)
         while True:
             broken_edge = int(input_c())
             if broken_edge == -1:
                 break
             graph.edges[broken_edge - 1].dead = True
-            # Find services affected by the broken edge
-            affected_services: list[Service] = []
-            for service in services:
-                if not service.dead and broken_edge in service.edges:
-                    service.dead = True
-                    affected_services.append(service)
-            # Sort services by value (descending)
-            affected_services.sort(key=lambda s: s.value, reverse=True)
-            successful_replans: list[Replan] = []
-            for service in affected_services:
-                path = graph.shortest_path(service)
-                if path is False:
-                    continue
-                # Remove service from the edges
-                for edge in service.edges:
-                    for s in graph.edges[edge - 1].services:
-                        if s == service.id:
-                            graph.edges[edge - 1].services.remove(s)
-                            break
-                # Use up the channels
-                for edge in path:
-                    edge = graph.edges[edge - 1]
-                    if service.id not in edge.services:
-                        edge.services.append(service.id)
 
-                successful_replans.append(
-                    Replan(
-                        service_idx=service.id,
-                        edges=[
-                            (e, service.wavelength_lower, service.wavelength_upper)
-                            for e in path
-                        ],
-                    )
-                )
-                service.edges = [edge for edge in path]
-                service.dead = False
+            successful_replans, _ = get_replans(graph, broken_edge)
+
             print(len(successful_replans))
             for replan in successful_replans:
                 print(replan.service_idx, len(replan.edges))
