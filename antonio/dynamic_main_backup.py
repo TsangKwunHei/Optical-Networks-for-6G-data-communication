@@ -174,7 +174,7 @@ class Graph:
         }
         previous_node = {node.id: -1 for node in self.nodes}
 
-        # edge_available_wl: dict[int, list[tuple[int, int]]] = {}
+        edge_available_wl: dict[int, list[tuple[int, int]]] = {}
 
         while unvisited_nodes:
             current_node = min(
@@ -193,45 +193,36 @@ class Graph:
                 # Check for service wavelength constraints
                 constraint_violated = False
 
-                # occupied_wavelengths = [
-                #     (
-                #         self.get_service(s).wavelength_lower,
-                #         self.get_service(s).wavelength_upper,
-                #     )
-                #     for s in edge.services
-                #     # if s != service
-                # ]
-                # available_wavelengths = find_available_wavelengths(
-                #     occupied_wavelengths, service.wavelength_range()
-                # )
+                occupied_wavelengths = [
+                    (
+                        self.get_service(s).wavelength_lower,
+                        self.get_service(s).wavelength_upper,
+                    )
+                    for s in edge.services
+                    # if s != service
+                ]
+                available_wavelengths = find_available_wavelengths(
+                    occupied_wavelengths, service.wavelength_range()
+                )
                 # Get previous edge
-                # if current_node.id == service.source:
-                #     previous_edge = None
-                # else:
-                #     previous_edge = self.edge_map[previous_node[current_node.id]][
-                #         current_node.id
-                #     ]
-                # if previous_edge is not None:
-                #     available_wavelengths = merge_wavelenghts(
-                #         available_wavelengths,
-                #         edge_available_wl[previous_edge.id],
-                #         service.wavelength_range(),
-                #     )
-                # constraint_violated = len(available_wavelengths) == 0
-                for other_service in edge.services:
-                    if other_service == service.id:
-                        continue
-                    other_service = self.get_service(other_service)
-                    if (
-                        other_service.wavelength_lower <= service.wavelength_upper
-                        and service.wavelength_lower <= other_service.wavelength_upper
-                    ):
-                        constraint_violated = True
-                        break
+                if current_node.id == service.source:
+                    previous_edge = None
+                else:
+                    previous_edge = self.edge_map[previous_node[current_node.id]][
+                        current_node.id
+                    ]
+                if previous_edge is not None:
+                    available_wavelengths = merge_wavelenghts(
+                        available_wavelengths,
+                        edge_available_wl[previous_edge.id],
+                        service.wavelength_range(),
+                    )
+                constraint_violated = len(available_wavelengths) == 0
+
                 if not constraint_violated and new_path < distance_from_start[neighbor]:
                     distance_from_start[neighbor] = new_path
                     previous_node[neighbor] = current_node.id
-                    # edge_available_wl[edge.id] = available_wavelengths
+                    edge_available_wl[edge.id] = available_wavelengths
 
             if current_node.id == service.destination:
                 break
@@ -240,21 +231,21 @@ class Graph:
             return False
         path: deque[Edge] = deque()
         current_node = service.destination
-        # last_edge = self.edge_map[previous_node[current_node]][current_node]
+        last_edge = self.edge_map[previous_node[current_node]][current_node]
         while previous_node[current_node] != -1:
             path.appendleft(self.edge_map[previous_node[current_node]][current_node])
             current_node = previous_node[current_node]
 
-        # available_wavelengths = edge_available_wl[last_edge.id]
-        # # Find wavelength with smallest range
-        # available_wavelengths.sort(key=lambda w: w[1] - w[0])
-        # chosen_wavelengths = available_wavelengths[0]
-        # # Reduce the upper bound to match service wavelength range
-        # chosen_wavelengths = (
-        #     chosen_wavelengths[0],
-        #     chosen_wavelengths[0] + service.wavelength_range() - 1,
-        # )
-        return path, (service.wavelength_lower, service.wavelength_upper)
+        available_wavelengths = edge_available_wl[last_edge.id]
+        # Find wavelength with smallest range
+        available_wavelengths.sort(key=lambda w: w[1] - w[0])
+        chosen_wavelengths = available_wavelengths[0]
+        # Reduce the upper bound to match service wavelength range
+        chosen_wavelengths = (
+            chosen_wavelengths[0],
+            chosen_wavelengths[0] + service.wavelength_range() - 1,
+        )
+        return path, chosen_wavelengths
 
 
 @dataclass
