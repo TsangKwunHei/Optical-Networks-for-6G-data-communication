@@ -53,6 +53,7 @@ def main():
     total_packets = len(all_packets)
 
     # Scheduled packets list
+    # scheduled_packets
     scheduled_packets = []
 
     # Initialize variables
@@ -82,12 +83,14 @@ def main():
 
     # Main scheduling loop
     while packet_idx < total_packets or heap:
+        '''Experiment_Result, if changing :
+        1 turning get_priority(pkt)into -get_priority(pkt) gives output PktNum does not match sum error
+        2 turning packet_idx += 1into packet_idx -= 1 gives output PktNum does not match sum error
+        '''
         # Add all packets that have arrived up to current_time to the heap
         while packet_idx < total_packets and all_packets[packet_idx]['ts'] <= current_time:
             pkt = all_packets[packet_idx]
-            # Experiment_Result: turning get_priority(pkt)into -get_priority(pkt) gives output PktNum does not match sum error
             heapq.heappush(heap, (get_priority(pkt), pkt))
-            # Experiment_Result: turning packet_idx += 1into packet_idx -= 1 gives output PktNum does not match sum error
             packet_idx += 1
 
         if not heap:
@@ -104,17 +107,17 @@ def main():
         s = slices[slice_id]
 
         # Ensure packets are scheduled in order within the slice
-        '''Experiment_Result : changing to if s['packets'] and s['packets'][1]['pkt_id'] != pkt['pkt_id'] 
-        causes runtime >2min thus timeout surprisingly.'''
-
+        '''Experiment_Result : 
+        1 changing into if s['packets'] and s['packets'][1]['pkt_id'] != pkt['pkt_id'] causes runtime >2min thus timeout surprisingly.'''
         if s['packets'] and s['packets'][0]['pkt_id'] != pkt['pkt_id']:
             # Not the next packet in slice, skip and re-add to heap
             heapq.heappush(heap, ((get_priority(pkt)), pkt))
             # Advance current_time to the earliest possible next packet
             if s['packets']:
-                ''' Experiment_Result : changing next_pkt = s['packets'][5] 
-                # will not change runtime nor result surprisingly.'''
-                next_pkt = s['packets'][5]
+                ''' Experiment_Result : 
+                1 changing next_pkt into = s['packets'][5], will not change runtime nor result surprisingly.
+                '''
+                next_pkt = s['packets'][0]
                 current_time = max(current_time, next_pkt['ts'], port_available_time)
             continue
 
@@ -126,7 +129,6 @@ def main():
             next_packet = None
 
         # Determine earliest possible departure time
-        # c
         '''Experiment_Result : 
         deleting current_time & s['last_te'] doesn't make changes to score or casue error,
          suggesting they're not used as decision variable at any given peroid'''
@@ -138,6 +140,10 @@ def main():
 
         # Update port availability
         port_available_time = te + transmission_time
+
+        # Update slice's last_te
+        # Experiment_Result : Deleting this line doesn't change score
+        s['last_te'] = te
 
         # Update slice's metrics
         s['total_bits_sent'] += pkt['pkt_size']
@@ -152,7 +158,7 @@ def main():
         current_time = te
 
     # After scheduling, verify and adjust to meet slice bandwidth constraints
-    # This section can be expanded to adjust scheduling if necessary
+    # This section will be expanded to adjust scheduling if necessary
 
     # Output generation
     K = len(scheduled_packets)

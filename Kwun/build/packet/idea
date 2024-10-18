@@ -1,0 +1,68 @@
+BEGIN main function
+
+  READ all input data
+  Initialize idx = 0
+  READ number of slices (n) and port bandwidth (PortBW_Gbps)
+
+  Initialize list of slices and all_packets
+
+  FOR each slice (slice_id) from 0 to n-1:
+    READ number of packets in slice (m_i), slice bandwidth (SliceBW_i), and upper bound delay (UBD_i)
+    
+    Initialize list of packets
+    FOR each packet in slice (pkt_id) from 0 to m_i-1:
+      READ packet arrival time (ts) and packet size (pkt_size)
+      Calculate packet deadline as ts + UBD_i
+      Create packet dictionary with ts, pkt_size, pkt_id, slice_id, and deadline
+      ADD packet to packets list and all_packets list
+
+    Create slice_info dictionary with UBD_i, SliceBW_i, slice_id, sorted packets, and other initial values
+    ADD slice_info to slices list
+
+  SORT all_packets by arrival time
+
+  Initialize variables:
+    - scheduled_packets list
+    - current_time = 0
+    - port_available_time = 0
+    - packet_idx = 0
+    - heap = []
+
+  DEFINE function get_priority to calculate the priority of a packet based on urgency, bandwidth usage, and deadline
+
+  BEGIN main scheduling loop:
+    WHILE packet_idx < total_packets OR heap is not empty:
+      ADD all packets that have arrived by current_time to the heap
+
+      IF heap is empty:
+        Advance current_time to the earliest next packet or port_available_time
+        CONTINUE
+
+      POP packet with highest priority from heap
+
+      IF packet is not the next in order for its slice:
+        RE-ADD packet to heap
+        Advance current_time to earliest next packet
+        CONTINUE
+
+      Pop the next packet from the slice's queue
+
+      Calculate earliest possible departure time (te) and transmission time
+
+      Update port availability and slice state (total_bits_sent, last_te, max_delay)
+
+      ADD packet to scheduled_packets list
+      Advance current_time to te
+
+      FOR each slice:
+        IF slice bandwidth constraints are not met:
+          Prioritize this slice’s packets by re-adding them to heap
+
+    Output scheduled packets
+    PRINT the total number of scheduled packets (K)
+    PRINT the details of each scheduled packet (te, slice_id, pkt_id)
+
+END main function
+
+IF __name__ == "__main__":
+  Start main function in a new thread
