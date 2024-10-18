@@ -9,27 +9,28 @@ def main():
 
     # Read all input data
     data = sys.stdin.read().split()
-    idx = 0
-
-    # Number of slices and PortBW
-    n = int(data[idx]); idx += 1
-    PortBW_Gbps = float(data[idx]); idx += 1  # in Gbps
-    PortBW = PortBW_Gbps   
-
-    slices = []
-    all_packets = []
+    idx = 0 # Count
     '''
+    Example Input
     2 2 
     3 1 30000 
     0 8000 1000 16000 3000 8000 
     3 1 30000 
     0 8000 1000 16000 3000 8000 
-
     '''
-    for slice_id in range(n):
-        m_i = int(data[idx]); idx += 1
+    # Number of slices and PortBW
+    n = int(data[idx]); idx += 1  #  num slice users = 2
+    PortBW_Gbps = float(data[idx]); idx += 1  # in Gbps
+    PortBW = PortBW_Gbps   # PortBW_Gbps = 2 
+
+    slices = []
+    all_packets = []
+
+    for slice_id in range(n): 
+        m_i = int(data[idx]); idx += 1 # num slice packets   
         SliceBW_i = float(data[idx]); idx += 1  # in Gbps
-        UBD_i = int(data[idx]); idx += 1  # in ns
+        UBD_i = int(data[idx]); idx += 1  # slice delay tolerance
+        # sequence information about the indiviual slice
         packets = []
         for pkt_id in range(m_i):
             ts = int(data[idx]); idx += 1  # arrival time in ns
