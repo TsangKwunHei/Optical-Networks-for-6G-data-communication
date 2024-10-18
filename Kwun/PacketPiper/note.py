@@ -36,9 +36,9 @@ def main():
         SliceBW_i = float(data[idx]); idx += 1  # in Gbps
         UBD_i = int(data[idx]); idx += 1  # slice delay tolerance
         '''
-            Slice   ts(Arrival) pktsize
-            1      
-            2
+        Slice   SliceBW_i   UBD     num_slice_packets(m_n)
+        1       1           3000    3
+        2       1           3000    3
         '''
         # sequence information about the indiviual slice
         packets = []
@@ -77,13 +77,10 @@ def main():
         }
         slices.append(slice_info)
 
-    # Sort all packets by arrival time
+   
+    
     '''
-    sorted = 
-    s1.p1, s2.p1, s1.p2, s2.p2, s1.p3, s2.p3
-    '''
-    # pkt is just a temporary name for each element 
-    '''
+    Function
     1: sort() function look at each packet in the list.
 	2: For each packet, 
         runs the lambda function (lambda pkt: pkt['ts']), 
@@ -92,14 +89,14 @@ def main():
     on 'ts' values in ascending order (from the smallest  to the largest).
 
     lambda pkt: pkt['ts']: 
-    The lambda is an anonymous (unnamed) function that 
     1 takes each element in the list (temporarily calling it pkt) 
     2 returns its timestamp ('ts'), which will be used as the key for sorting.
-
-    If desending : all_packets.sort(key=lambda pkt: pkt['ts'], reverse=True)
-    '''
+    (pkt is just a temporary name for each element)
     
-    all_packets.sort(key=lambda pkt: pkt['ts'])
+    For desending : all_packets.sort(key=lambda pkt: pkt['ts'], reverse=True)
+    '''
+    #sorted as s1.p1, s2.p1, s1.p2, s2.p2, s1.p3, s2.p3.
+    all_packets.sort(key=lambda pkt: pkt['ts'])  # Sort all packets by arrival time
     total_packets = len(all_packets) #2x3 = 6
 
     # Scheduled packets list
