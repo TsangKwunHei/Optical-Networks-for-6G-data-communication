@@ -55,9 +55,9 @@ def merge_wavelenghts(
     return result
 
 
-N_EDGES = 1000
+N_EDGES = 500
 N_NODES = 100
-N_SERVICES = 700
+N_SERVICES = 500
 
 
 @dataclass
