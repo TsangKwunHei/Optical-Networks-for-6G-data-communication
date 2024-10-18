@@ -24,7 +24,6 @@ def main():
     0 8000 1000 16000 3000 8000 
     3 1 30000 
     0 8000 1000 16000 3000 8000 
-
     '''
     for slice_id in range(n):
         m_i = int(data[idx]); idx += 1

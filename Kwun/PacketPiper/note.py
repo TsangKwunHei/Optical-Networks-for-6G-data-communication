@@ -6,7 +6,12 @@ from collections import deque
 
 def main():
     import sys
-
+    '''
+    In this code it's just for me simulating Input
+    with my own head so to have a better understanding
+    of bottleneck. The plan is to keep finding the weakness of this code and then,
+    by fixing the weakness, improve the score.
+    '''
     # Read all input data
     data = sys.stdin.read().split()
     idx = 0 # Count
@@ -180,7 +185,7 @@ def main():
 
         # Pop the packet with the highest priority
         ''' For Example input, this'll be run 6 times
-        s.p     idx     ts      Deadline    Pop_order   s
+        s.p     idx     ts      Deadline    Pop_order   sliceid
         s1.p1   0       0       30000       1           1
         s2.p1   1       0       30000       2           2
         s1.p2   2       1000    31000       3           1
@@ -190,8 +195,15 @@ def main():
         '''
         _, pkt = heapq.heappop(heap)
         slice_id = pkt['slice_id']
-        s = slices[slice_id]
+        s = slices[slice_id] # assigns the slice information from the slices list to s
 
+
+        '''
+        Packets in the same slice must leave in the order in which they arrived, 
+        and the packet leaving time must be longer than the packet arrival time.
+            te_{i,j+1} => te_{i,j}
+            te_{i,j} => ts_{i,j}
+        '''
         # Ensure packets are scheduled in order within the slice
         '''Experiment_Result : 
         1 changing into if s['packets'] and s['packets'][1]['pkt_id'] != pkt['pkt_id'] causes runtime >2min thus timeout surprisingly.'''
@@ -208,6 +220,15 @@ def main():
             continue
 
         # Pop the next packet from the slice's queue
+        '''
+        checks if there are any packets left in the slice’s queue.
+        if slice has packets remaining,
+            1 removes (pops)
+            2 retrieves the first packet from the queue
+
+        ensures that the next packet from the slice is ready to be processed and scheduled.
+
+        '''
         if s['packets']:
             next_packet = s['packets'].popleft()
         else:
@@ -241,13 +262,15 @@ def main():
 
         # Update slice's metrics
         ''' 3 Output bandwidth constraint for the ith slice (SliceBW_i)
-    
+
         PacketSize_i/ te_{i,m} - ts_{i,1} => SliceBW_i * 0.95
         
         PacketSize_i    sum of all packetsize in a slice
-        te_{i,m}        departure time of the last packet in the ith slice
-        ts_{i,1}        arrival time of the first packet in the ith slice is  
-        SliceBW ranges from 0.01Gbps to 10Gbps.
+        te_{i,m}        departure time of last packet in the ith slice
+        ts_{i,1}        arrival time of first packet in the ith slice 
+        '''
+        '''
+        total_bits_sent = pkt_size
         '''
         s['total_bits_sent'] += pkt['pkt_size']
         delay = te - pkt['ts']
@@ -261,7 +284,6 @@ def main():
         current_time = te
 
     # After scheduling, verify and adjust to meet slice bandwidth constraints
-    # This section will be expanded to adjust scheduling if necessary
 
     # Output generation
     K = len(scheduled_packets)
