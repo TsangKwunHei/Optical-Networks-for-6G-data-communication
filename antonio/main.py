@@ -227,9 +227,13 @@ def get_replans(graph: Graph, broken_edge: int):
 
 def get_recovery_rate(graph: Graph, edge: Edge) -> float:
     successful_replans, affected_services = get_replans(graph, edge.id)
-    return sum(
-        graph.services[s.service_idx - 1].value for s in successful_replans
-    ) / sum(s.value for s in affected_services)
+    total_value = sum(s.value for s in affected_services)
+    if total_value == 0:
+        return 0
+    return (
+        sum(graph.services[s.service_idx - 1].value for s in successful_replans)
+        / total_value
+    )
 
 
 def main():
@@ -241,17 +245,28 @@ def main():
     edges.sort(
         key=lambda e: sum(services_o[s - 1].value for s in e.services), reverse=True
     )
-    printerr("Total edges:", len(edges))
-    edges = edges[: len(edges) // 2]
-    printerr("Edges:", len(edges))
-    # Now sort by recovery rate
+    # Take the top 30% of edges
+    edges = edges[: int(len(edges) * 0.3)]
     edges.sort(
         key=lambda e: get_recovery_rate(deepcopy(graph_o), e),
         reverse=True,
     )
-    edges = edges[: min(29, len(edges) // 4)]
-    for edge in edges:
-        test_scenarios.append([edge.id])
+    # Take the top 30% of edges
+    edges = edges[: int(len(edges) * 0.3)]
+    edges.sort(
+        key=lambda e: sum(services_o[s - 1].value for s in e.services), reverse=True
+    )
+    # Split into 29 scenarios
+    num_edges_per_scenario = len(edges) // 29
+    for i in range(29):
+        test_scenarios.append(
+            [
+                e.id
+                for e in edges[
+                    i * num_edges_per_scenario : (i + 1) * num_edges_per_scenario
+                ]
+            ]
+        )
 
     print(len(test_scenarios))  # Number of test scenarios
     for scenario in test_scenarios:

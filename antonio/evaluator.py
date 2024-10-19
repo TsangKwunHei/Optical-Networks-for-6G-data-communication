@@ -353,6 +353,8 @@ if __name__ == "__main__":
     n_services = len(graph.services)
     ### Read user privded scenarios
     n_scenarios = int(input())
+    if n_scenarios > 30:
+        raise ValueError("Too many scenarios")
     printerr("User provided", n_scenarios, "scenarios")
     test_scenarios: list[set[int]] = []
     for _ in range(n_scenarios):
