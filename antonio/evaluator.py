@@ -384,6 +384,7 @@ if __name__ == "__main__":
                 graph.services[affected_service - 1].dead = True
             n_successful_replans = int(input())
             if n_successful_replans > len(affected_services):
+                printerr(n_successful_replans, len(affected_services))
                 raise ValueError("More services replanned than affected")
             for _ in range(n_successful_replans):
                 service_idx, num_edges = map(int, input().split())
