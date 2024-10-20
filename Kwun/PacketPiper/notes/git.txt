@@ -1,2 +1,7 @@
  ! [rejected]        main -> main (non-fast-forward)
- 
+
+
+ 1 git pull origin main --no-ff
+
+ Esc 
+ :wq 

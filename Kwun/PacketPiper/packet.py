@@ -149,6 +149,12 @@ def main():
         )
         te = math.ceil(te_candidate)
 
+        '''
+        In this code, 
+        now it basically every time it's just choose the, 
+        port_available_time as te, 
+        (except that for 1st packet it process (which port_available_time is not yet available) choose the current's time)
+        '''
         # Calculate the transmission time based on packet size and port bandwidth
         transmission_time = math.ceil(packet['pkt_size'] / port_bw)
 

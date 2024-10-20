@@ -1,7 +1,7 @@
 
 
 
-1 If know 
+1 f1
 set of Packet j1  |  fi = 1  max(te_ij - ts_ij) for all j ≤ UBD_i 
 set of Packet j0  |  fi = 0  max(te_ij - ts_ij) for all j > UBD_i 
 (UBD is given, no limit of value specified in doc, in example it's 30000)
@@ -14,7 +14,7 @@ Assume UBD is 30000 (simple case)
 if leave - arrive is small
 Good 
 
-
+-------
 
 If know (min(({te_{k,m} - te_{i,j}} ) - (PktSize_{i,j}/PortBW) )/(PktSize_{i,j}/PortBW))
         
