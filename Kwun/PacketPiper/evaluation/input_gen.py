@@ -16,7 +16,7 @@ def generate_input():
     with open(file_path, 'w') as f_out:
         # Generate the number of slice users n (1 ≤ n ≤ 10000) and PortBW (1 Gbps to 800 Gbps)
         n = slice_users
-        port_bw_gps = port_bw (1, 800)  # From 1 Gbps to 800 Gbps.
+        port_bw_gps = port_bw # From 1 Gbps to 800 Gbps.
 
         # Write Line 1: Number of slice users and PortBW
         line1 = f"{n} {port_bw_gps}"
