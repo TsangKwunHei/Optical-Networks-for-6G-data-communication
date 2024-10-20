@@ -798,7 +798,7 @@ void rePlan(vector<Service>* services, vector<Edge>* edges, vector<Node>* nodes,
     fflush(stdout);  // 刷新输出缓冲区
     for (int i = 0; i < num_need_to_replan; i++) {
         if (success_replan.size() > 0) {
-            if (success_replan[i] != -1) {
+            if (success_replan[i] > 0) {
                 cout << success_replan[i] << " " << replan_edge_num[i] << endl;
                 fflush(stdout);  // 刷新输出缓冲区
                 for (int j = 0; j < replan_edge_num[i]; j++) {
