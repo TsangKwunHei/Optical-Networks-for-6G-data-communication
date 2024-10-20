@@ -1,7 +1,10 @@
 <input>
 
-goal: 
-    to generate simulated input
+steps
+    when Run
+    1 ouput simulated input into system output stream (another program might read it)
+    2 put content in a txt file called input_simulation.txt (make it if it's not there)
+    (in the excat folder that the code is located)
 
 Line 1: 
     Number of slice users n (1<=n<=10,000), PortBW(Gbps) 
@@ -22,7 +25,6 @@ PortBW is a constant ranges from 1 Gbps to 800 Gbps.
 For now assume 
 number of first slice packets m_1 = 3
 UBD = 30000
-
 
 
 Example Input 

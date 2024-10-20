@@ -170,7 +170,7 @@ def main():
         s = slices[slice_id] # assigns the slice information from the slices list to s
 
 
-        '''
+        ''' 3
         Packets in the same slice must leave in the order in which they arrived, 
         and the packet leaving time must be longer than the packet arrival time.
             te_{i,j+1} => te_{i,j}

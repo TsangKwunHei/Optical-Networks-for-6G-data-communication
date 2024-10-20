@@ -1,20 +1,36 @@
 
 Simulate input
 
+<Overview of evaluation.py>
 max delay overtime
 
 Parts 
-
-    Input
     Score 
     Constraints
     Rules
 
-1 Run packet.py 
-2 Give it input using the system’s standard input stream stream
+1 Run packet.py  (in the excat folder that the code is located) 
+2 Give it input(from input.txt) using the system’s standard input stream stream  
 3 The code should print output stream 
 4 evaluate it.
+<Overview of evaluation.py>
 
+
+<overview> 
+if Debug mode ON
+        1 run input_gen.py (in exact same folder )
+        2 take input stream from input_gen.py
+        3 Print evaluation statements
+        
+        options to turn off each part for 
+            1 Score 
+            2 Constraints
+            3 Rules
+    else
+        (normal mode for actual evaluation)
+        1 use the system’s standard input stream and standard output stream for input and output.
+        2 don't print anything other than output
+<overview> 
 
 <Score>
 The goal of the task can be modeled as:
@@ -97,9 +113,15 @@ Constraint 3
 </Delay>
 
 <Rules>
+    Embed these rules in the code (make it so that code doesnt run)
     Must have rules for the code 
         Num Output set of packet has to equal to input set (num slice users) **
         Runtime has to be < 2 min * 
         The Output Slice ID and Packet ID must start from 0.
         The timestamp of packets (te_{i,j} & ts_{i,j} etc )must be an integer, which unit is ns.
+
+    Print 
+        runtime_total: runtime_total
+        runtime per slice: runtime_slice (total slice = ?)
+        runtime per packet: runtime_packet (total slice = ?)
 </Rules>

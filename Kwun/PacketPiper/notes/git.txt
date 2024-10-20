@@ -1,0 +1,2 @@
+ ! [rejected]        main -> main (non-fast-forward)
+ 
