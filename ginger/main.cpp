@@ -507,19 +507,19 @@ void priorityQueueSearch(
     float w_utilization,
     float standardize_edge_importance,
     int num_need_to_replan,
-    vector<vector<int>> Path,
-    vector<vector<int>> left_channel_Path,
-    vector<vector<int>> right_channel_Path,
-    vector<vector<bool>> switch_channel_Path,
-    vector<vector<int>> node_Path,
-    vector<int> success_replan)//自定义代价函数的优先队列搜索 
+    vector<vector<int>>* Path,
+    vector<vector<int>>* left_channel_Path,
+    vector<vector<int>>* right_channel_Path,
+    vector<vector<bool>>* switch_channel_Path,
+    vector<vector<int>>* node_Path,
+    vector<int>* success_replan)//自定义代价函数的优先队列搜索 
 {
-    Path.resize(num_need_to_replan);
-    node_Path.resize(num_need_to_replan);
-    left_channel_Path.resize(num_need_to_replan);
-    right_channel_Path.resize(num_need_to_replan);
-    switch_channel_Path.resize(num_need_to_replan);
-    success_replan.resize(num_need_to_replan);
+    (*Path).resize(num_need_to_replan);
+    (*node_Path).resize(num_need_to_replan);
+    (*left_channel_Path).resize(num_need_to_replan);
+    (*right_channel_Path).resize(num_need_to_replan);
+    (*switch_channel_Path).resize(num_need_to_replan);
+    (*success_replan).resize(num_need_to_replan);
     //先整理需要重规划的服务器
     vector<vector<int>> replan_idx_priority;
     replan_idx_priority.resize(num_need_to_replan);
@@ -530,7 +530,7 @@ void priorityQueueSearch(
             svc_id_priority.resize(2);
             svc_id_priority[0] = i;
             svc_id_priority[1] = (*services)[i].right_channel - (*services)[i].left_channel + 1;
-            replan_idx_priority.push_back(svc_id_priority);
+            replan_idx_priority[i]=(svc_id_priority);
             if ((*services)[i].service_value > max_value) {
                 max_value = (*services)[i].service_value;
             }
@@ -573,12 +573,12 @@ void priorityQueueSearch(
         int svc_id = replan_idx_priority[rp][0];
         int start = (*services)[svc_id].source;
         int goal = (*services)[svc_id].destination;
-        success_replan[rp] = -1;
+        (*success_replan)[rp] = -1;
 
         // 所有的边的占据情况记录
         vector<Edge> edges_current(*edges);
-        for (int i = 0; i < (*services)[svc_id].path.size(); i++) {
-            int edge_idx = (*services)[svc_id].path[i] - 1;
+        for (int i = 0; i < (*services)[svc_id].passed_edges.size(); i++) {
+            int edge_idx = (*services)[svc_id].passed_edges[i] - 1;
             for (int j = (*services)[svc_id].left_channel_per_edge[i] - 1; j < (*services)[svc_id].right_channel_per_edge[i]; j++) {
                 edges_current[edge_idx].wave_length_occupied[j] = false;
             }
@@ -608,12 +608,12 @@ void priorityQueueSearch(
 
             if (current.id == goal) {
                 found = true;
-                Path[rp] = current.edgeIndices;
-                left_channel_Path[rp] = current.left_channel_list;
-                right_channel_Path[rp] = current.right_channel_list;
-                switch_channel_Path[rp] = current.using_switch_list;
-                success_replan[rp] = (*services)[svc_id].id;
-                node_Path[rp] = current.nodeIndices;
+                (*Path)[rp] = current.edgeIndices;
+                (*left_channel_Path)[rp] = current.left_channel_list;
+                (*right_channel_Path)[rp] = current.right_channel_list;
+                (*switch_channel_Path)[rp] = current.using_switch_list;
+                (*success_replan)[rp] = (*services)[svc_id].id;
+                (*node_Path)[rp] = current.nodeIndices;
             }
 
             if (!found) {
@@ -696,8 +696,11 @@ void priorityQueueSearch(
                 break;
             }
         }
-        if (success_replan[rp] < 0) {
-            success_replan[rp] = -(*services)[svc_id].id;
+        if ((*success_replan)[rp] < 0) {
+            (*success_replan)[rp] = -(*services)[svc_id].id;
+        }
+        for (int i = 0; i < (*Path)[rp].size(); i++) {
+            (*Path)[rp][i]++;
         }
     }
 }
@@ -735,12 +738,12 @@ void rePlan(vector<Service>* services, vector<Edge>* edges, vector<Node>* nodes,
         w_utilization1, 
         standardize_edge_importance, 
         num_need_to_replan,
-        Path1,
-        left_channel_Path1,
-        right_channel_Path1,
-        switch_channel_Path1,
-        node_Path1,
-        success_replan);
+        &Path1,
+        &left_channel_Path1,
+        &right_channel_Path1,
+        &switch_channel_Path1,
+        &node_Path1,
+        &success_replan);
 
     //尝试权重2
 
@@ -752,37 +755,44 @@ void rePlan(vector<Service>* services, vector<Edge>* edges, vector<Node>* nodes,
     replan_edge_num.resize(num_need_to_replan);
     for (int i = 0; i < num_need_to_replan; i++) {
         replan_edge_num[i] = left_channel_Path1.size();
-        if (success_replan[i] >= 0) {
-            total_num_success_replan++;
-            int svc_idx = success_replan[i] - 1;
-            (*services)[svc_idx].passed_edges.resize(replan_edge_num[i]);
-            (*services)[svc_idx].left_channel_per_edge.resize(replan_edge_num[i]);
-            (*services)[svc_idx].right_channel_per_edge.resize(replan_edge_num[i]);
-            for (int j = 0; j < replan_edge_num[i]; j++) {
-                int node_idx = node_Path1[i][j] - 1;
-                (*services)[svc_idx].passed_edges[j] = Path1[i][j];
-                (*services)[svc_idx].left_channel_per_edge[j] = left_channel_Path1[i][j];
-                (*services)[svc_idx].right_channel_per_edge[j] = right_channel_Path1[i][j];
-                if (switch_channel_Path1[i][j]){
-                    (*nodes)[node_idx].switching_times--;
+        if (success_replan.size()>0){
+            if (success_replan[i] >= 0) {
+                total_num_success_replan++;
+                int svc_idx = success_replan[i] - 1;
+                (*services)[svc_idx].passed_edges.resize(replan_edge_num[i]);
+                (*services)[svc_idx].left_channel_per_edge.resize(replan_edge_num[i]);
+                (*services)[svc_idx].right_channel_per_edge.resize(replan_edge_num[i]);
+                for (int j = 0; j < replan_edge_num[i]; j++) {
+                    int node_idx = node_Path1[i][j] - 1;
+                    (*services)[svc_idx].passed_edges[j] = Path1[i][j];
+                    (*services)[svc_idx].left_channel_per_edge[j] = left_channel_Path1[i][j];
+                    (*services)[svc_idx].right_channel_per_edge[j] = right_channel_Path1[i][j];
+                    if (switch_channel_Path1[i][j]) {
+                        (*nodes)[node_idx].switching_times--;
+                    }
                 }
             }
-        }
-        else{
-            int svc_idx = -success_replan[i] - 1;
-            (*services)[svc_idx].alive = false;
+            else {
+                int svc_idx = -success_replan[i] - 1;
+                (*services)[svc_idx].alive = false;
+            }
         }
     }
 
     // 输出重规划细节
     cout << total_num_success_replan << endl;
     for (int i = 0; i < num_need_to_replan; i++) {
-        if (success_replan[i] != -1) {
-            cout << success_replan[i] << " " << replan_edge_num[i] << endl;
-            for (int j = 0; j < replan_edge_num[i]; j++) {
-                cout << Path1[i][j] << " " << left_channel_Path1[i][j] << " " << right_channel_Path1[i][j] << " ";
+        if (success_replan.size() > 0) {
+            if (success_replan[i] != -1) {
+                cout << success_replan[i] << " " << replan_edge_num[i] << endl;
+                for (int j = 0; j < replan_edge_num[i]; j++) {
+                    cout << Path1[i][j] << " " << left_channel_Path1[i][j] << " " << right_channel_Path1[i][j] << " ";
+                }
+                cout << endl;
             }
-            cout << endl;
+        }
+        else {
+            cout << 0 << endl;
         }
     }
     //cout << 
@@ -809,13 +819,15 @@ int main(){
         vector<Service> services(init_services);
         vector<Edge> edges(init_edges);
         vector<Node> nodes(init_nodes);
-        // 读取故障总数 read failure_number
-        int ci;
-        cin >> ci;
-        for (int c = 0; c < ci; c++) {
+
+        while (true) {
             // 读取故障边 read failure_edge
             int e_failed;
             cin >> e_failed;
+            // 识别结束符号
+            if (e_failed < 0) {
+                break;
+            }
             
             // 更新故障发生后边的状态 update_edge_status
             edges[e_failed - 1].is_broken = true;
@@ -826,9 +838,6 @@ int main(){
             // 执行重规划
             rePlan(&services, &edges, &nodes, num_need_to_replan);
         }
-        // 读取结束信号
-        int fin;
-        cin >> fin;
     }
 
 
