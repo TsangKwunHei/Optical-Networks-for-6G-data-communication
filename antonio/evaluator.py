@@ -4,7 +4,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from random import randint, seed
 
-seed(0)
+seed(1)
 
 
 def printerr(
@@ -389,6 +389,8 @@ if __name__ == "__main__":
             for _ in range(n_successful_replans):
                 service_idx, num_edges = map(int, input().split())
                 if service_idx not in affected_services:
+                    printerr("Service replanned:", service_idx)
+                    printerr("Affected services:", affected_services)
                     raise ValueError("Service not affected")
                 replans = list(map(int, input().split()))
                 assert len(replans) == num_edges * 3  # edge, min, max
