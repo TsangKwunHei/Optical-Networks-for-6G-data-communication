@@ -273,7 +273,7 @@ void detect_need_to_replan(vector<Service>* services, int e_failed, int* num_nee
         if (!(*iter).alive) {
             continue;
         }
-        for (vector<int>::iterator iter2 = (*iter).path.begin(); iter2 != (*iter).path.end(); iter2++) {
+        for (vector<int>::iterator iter2 = (*iter).passed_edges.begin(); iter2 != (*iter).passed_edges.end(); iter2++) {
             if (e_failed == (*iter2)) {
                 (*iter).need_to_replan = true;
             }
