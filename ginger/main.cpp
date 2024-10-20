@@ -430,11 +430,6 @@ void plan_channel_switch(vector<bool> edge_wave_length_occupied, int* changed_le
             }
         }
     }
-
-
-
-    int still_useful_part = 0;
-    int occupied_part = 0;
 }
 
 float costCalc(
