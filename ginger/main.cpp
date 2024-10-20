@@ -242,8 +242,9 @@ int T1 = 0;
 int T = 0;
 
 void Output_Scenarios() {
-    T1 = 30;
+    T1 = 0;
     cout << T1 << endl;
+    fflush(stdout);  // 刷新输出缓冲区
     int max_failure_number = 60;
     if (edge_number / 2 < max_failure_number) {
         max_failure_number = edge_number / 2;
@@ -251,6 +252,7 @@ void Output_Scenarios() {
     for (int i = 0; i < T1; i++) {
         int failure_nuber = randi(1, max_failure_number);
         cout << failure_nuber << endl;
+        fflush(stdout);  // 刷新输出缓冲区
         vector<int> randlist;
         randlist.resize(edge_number);
         for (int j = 0; j < edge_number; j++) {
@@ -261,6 +263,7 @@ void Output_Scenarios() {
             cout << randlist[j] << " ";
         }
         cout << endl;
+        fflush(stdout);  // 刷新输出缓冲区
     }
 }
 
@@ -428,7 +431,7 @@ void plan_channel_switch(vector<bool> edge_wave_length_occupied, int* changed_le
             *changed_right_channel = *changed_left_channel + current_WL - 1;
             if (b < 0.5) {
                 *changed_right_channel = insert_space_right[choose_space] + 1;
-                *changed_left_channel = *changed_left_channel - current_WL + 1;
+                *changed_left_channel = *changed_right_channel - current_WL + 1;
             }
         }
     }
@@ -518,18 +521,19 @@ void priorityQueueSearch(
     (*switch_channel_Path).resize(num_need_to_replan);
     (*success_replan).resize(num_need_to_replan);
     //先整理需要重规划的服务器
-    vector<vector<int>> replan_idx_priority;
-    replan_idx_priority.resize(num_need_to_replan);
+    vector<int> replan_idx1;
+    vector<int> replan_idx;
+    vector<float>replan_priority;
+    replan_idx1.resize(num_need_to_replan);
+    replan_idx.resize(num_need_to_replan);
+    replan_priority.resize(num_need_to_replan);
     int max_value = 0;
-    int replan_idx = -1;
+    int idx = -1;
     for (int i = 0; i < service_number; i++) {
         if ((*services)[i].need_to_replan) {
-            replan_idx++;
-            vector<int> svc_id_priority;
-            svc_id_priority.resize(2);
-            svc_id_priority[0] = i;
-            svc_id_priority[1] = (*services)[i].right_channel - (*services)[i].left_channel + 1;
-            replan_idx_priority[replan_idx]=(svc_id_priority);
+            idx++;
+            replan_idx1[idx] = i;
+            replan_priority[idx] = (*services)[i].right_channel - (*services)[i].left_channel + 1;
             if ((*services)[i].service_value > max_value) {
                 max_value = (*services)[i].service_value;
             }
@@ -537,17 +541,27 @@ void priorityQueueSearch(
     }
 
     for (int i = 0; i < num_need_to_replan; i++) {
-        int id = replan_idx_priority[i][0];
-        replan_idx_priority[i][1] = 
-            0.4 * (float(replan_idx_priority[i][1]) / 40) + 
+        int id = replan_idx1[i];
+        replan_priority[i]= 
+            0.4 * (float(replan_priority[i]) / 40) + 
             0.6 * (float((*services)[id].service_value) / max_value);
     }
     
+    vector<int> indices(replan_priority.size());
+    for (int i = 0; i < indices.size(); ++i) {
+        indices[i] = i;
+    }
+
+
     // 按优先度进行排序
-    sort(replan_idx_priority.begin(), replan_idx_priority.end(),
-        [](const vector<int>& a, const vector<int>& b) {
-            return a[1] > b[1];
+    sort(indices.begin(), indices.end(),
+        [&replan_priority](int a, int b) {
+            return replan_priority[a] > replan_priority[b];
         });
+
+    for (int i = 0; i < num_need_to_replan; i++) {
+        replan_idx[i] = replan_idx1[indices[i]];
+    }
 
     //刻画路网信息，用于后续路径规划
     multimap<int, int> graph;
@@ -569,7 +583,7 @@ void priorityQueueSearch(
 
     // 按排序后的重规划顺序进行规划
     for (int rp = 0; rp < num_need_to_replan; rp++) {
-        int svc_id = replan_idx_priority[rp][0];
+        int svc_id = replan_idx[rp];
         int start = (*services)[svc_id].source;
         int goal = (*services)[svc_id].destination;
         (*success_replan)[rp] = -1;
@@ -715,10 +729,6 @@ void rePlan(vector<Service>* services, vector<Edge>* edges, vector<Node>* nodes,
             standardize_edge_importance = (*edges)[i].importance;
         }
     }
-
-    if (num_need_to_replan > 0) {
-        int a = 1;
-    }
     
     //尝试权重1
     float w_edge_importance1 = 0.4;
@@ -757,9 +767,10 @@ void rePlan(vector<Service>* services, vector<Edge>* edges, vector<Node>* nodes,
     vector<int> replan_edge_num;
     replan_edge_num.resize(num_need_to_replan);
     for (int i = 0; i < num_need_to_replan; i++) {
-        replan_edge_num[i] = left_channel_Path1.size();
+        replan_edge_num[i] = left_channel_Path1[i].size();
         if (success_replan.size()>0){
             if (success_replan[i] >= 0) {
+                bool a = (*services)[success_replan[i] - 1].need_to_replan;
                 total_num_success_replan++;
                 int svc_idx = success_replan[i] - 1;
                 (*services)[svc_idx].passed_edges.resize(replan_edge_num[i]);
@@ -784,18 +795,22 @@ void rePlan(vector<Service>* services, vector<Edge>* edges, vector<Node>* nodes,
 
     // 输出重规划细节
     cout << total_num_success_replan << endl;
+    fflush(stdout);  // 刷新输出缓冲区
     for (int i = 0; i < num_need_to_replan; i++) {
         if (success_replan.size() > 0) {
             if (success_replan[i] != -1) {
                 cout << success_replan[i] << " " << replan_edge_num[i] << endl;
+                fflush(stdout);  // 刷新输出缓冲区
                 for (int j = 0; j < replan_edge_num[i]; j++) {
                     cout << Path1[i][j] << " " << left_channel_Path1[i][j] << " " << right_channel_Path1[i][j] << " ";
                 }
                 cout << endl;
+                fflush(stdout);  // 刷新输出缓冲区
             }
         }
         else {
             cout << 0 << endl;
+            fflush(stdout);  // 刷新输出缓冲区
         }
     }
     //cout << 
