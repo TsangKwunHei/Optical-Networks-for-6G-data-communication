@@ -10,7 +10,7 @@ def generate_input():
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Define the full path to the output file in the same folder as the script
-    file_path = os.path.join(script_dir, 'input_simulation.txt')
+    file_path = os.path.join(script_dir, 'input_sim.txt')
 
     # Open the output file in the current directory of the script
     with open(file_path, 'w') as f_out:
@@ -53,8 +53,6 @@ def generate_input():
             seq_info = ' '.join(f"{ts} {pkt_size}" for ts, pkt_size in zip(ts_list, pkt_size_list))
             print(seq_info)
             f_out.write(seq_info + '\n')
-
-    print(f"File successfully created at: {file_path}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,38 @@
+
+<Delay>
+Constraint 1. 
+        Scheduling output sequence must meet the port bandwidth constraint (PortBW). 
+        the following requirements must be met.
+            {te_{k,m} - te_{i,j}} => PktSize_{i,j}/PortBW  
+
+        te_{i,j}        leave time of previous packet
+        te_{k,m}        leave time of next packet 
+        PktSize_{i,j}   size of the processing Packet 
+
+
+Constraint 2.
+        Output bandwidth constraint for the ith slice (SliceBW_i)
+
+        PacketSize_i/ te_{i,m} - ts_{i,1} => SliceBW_i * 0.95
+        
+        PacketSize_i    sum of all packetsize in a slice
+        te_{i,m}        departure time of last packet in the ith slice
+        ts_{i,1}        arrival time of first packet in the ith slice 
+
+Constraint 3 
+        Packets in the same slice must leave in the order in which they arrived, 
+        and the packet leaving time must be longer than the packet arrival time.
+        
+        te_{i,j+1} => te_{i,j}
+        te_{i,j} => ts_{i,j}
+
+</Delay>
+
+<Rules>
+    Embed these rules in the code (make it so that code doesnt run)
+    Must have rules for the code 
+        Num Output set of packet has to equal to input set (num slice users) **
+        Runtime has to be < 2 min * 
+        The Output Slice ID and Packet ID must start from 0.
+        The timestamp of packets (te_{i,j} & ts_{i,j} etc )must be an integer, which unit is ns.
+</Rules>
