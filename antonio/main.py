@@ -48,6 +48,48 @@ def input_c():
     return input().strip()
 
 
+def find_available_wavelengths(occupied: list[tuple[int, int]], min_size: int):
+    occupied.sort(key=lambda w: w[0])
+    available_wavelengths: list[tuple[int, int]] = []
+    if not occupied:
+        available_wavelengths.append((1, 40))
+        return available_wavelengths
+    current = 1
+    for lower, upper in occupied:
+        if current < lower and lower - current >= min_size:
+            available_wavelengths.append((current, lower - 1))
+        current = max(current, upper + 1)
+    if current <= 40 and 41 - current >= min_size:
+        available_wavelengths.append((current, 40))
+    return available_wavelengths
+
+
+def merge_wavelenghts(
+    av_1: list[tuple[int, int]], av_2: list[tuple[int, int]], min_size: int
+):
+    av_1.sort(key=lambda w: w[0])
+    av_2.sort(key=lambda w: w[0])
+    # Shrink the list of available wavelengths such that only wavelengths available in both lists are kept
+    result: list[tuple[int, int]] = []
+    i, j = 0, 0
+    while i < len(av_1) and j < len(av_2):
+        # Find the overlapping range
+        start = max(av_1[i][0], av_2[j][0])
+        end = min(av_1[i][1], av_2[j][1])
+
+        # If there's an overlap and it meets the minimum size requirement
+        if start <= end and end - start + 1 >= min_size:
+            result.append((start, end))
+
+        # Move to the next range in the list with the smaller end point
+        if av_1[i][1] < av_2[j][1]:
+            i += 1
+        else:
+            j += 1
+
+    return result
+
+
 def read_environment():
     num_nodes, num_edges = input_c().split(" ")
     num_nodes, num_edges = int(num_nodes), int(num_edges)
@@ -118,7 +160,39 @@ class Graph:
             self.edge_map[e.destination][e.source][0]
         )
 
-    def shortest_path(self, service: Service):
+    def get_service(self, service_id: int):
+        return self.services[service_id - 1]
+
+    def constraint_edge(
+        self,
+        edge: Edge,
+        service: Service,
+        tmp_occupied: dict[int, list[tuple[int, int]]],
+    ):
+        for other_service in edge.services:
+            if other_service == service.id:
+                continue
+            other_service = self.services[other_service - 1]
+            if (
+                other_service.wavelength_lower <= service.wavelength_upper
+                and other_service.wavelength_upper >= service.wavelength_lower
+            ):
+                return True
+        if tmp_occupied and edge.id in tmp_occupied:
+            for wl in tmp_occupied[edge.id]:
+                if (
+                    wl[0] <= service.wavelength_upper
+                    and wl[1] >= service.wavelength_lower
+                ):
+                    return True
+        return False
+
+    def shortest_path(
+        self,
+        service: Service,
+        tmp_occupied: dict[int, list[tuple[int, int]]],
+        wl: bool = False,
+    ):
         unvisited_nodes = self.nodes.copy()
         distance_from_start: dict[int, float] = {
             node.id: (0 if node.id == service.source else INFINITY)
@@ -126,6 +200,7 @@ class Graph:
         }
         previous_node = {node.id: -1 for node in self.nodes}
         previous_edge = {node.id: -1 for node in self.nodes}
+        edge_available_wl: dict[int, list[tuple[int, int]]] = {}
 
         while unvisited_nodes:
             current_node = min(
@@ -141,20 +216,34 @@ class Graph:
                     if edge.dead:
                         continue
                     new_path = distance_from_start[current_node.id] + 1
-
                     constraint_violated = False
-                    for other_service in edge.services:
-                        # Check for overlapping wavelengths
-                        if other_service == service.id:
-                            continue
-                        other_service = self.services[other_service - 1]
-                        if (
-                            other_service.wavelength_lower <= service.wavelength_upper
-                            and other_service.wavelength_upper
-                            >= service.wavelength_lower
-                        ):
-                            constraint_violated = True
-                            break
+                    available_wavelengths = []
+                    if wl:
+                        occupied_wavelengths = [
+                            (
+                                self.get_service(s).wavelength_lower,
+                                self.get_service(s).wavelength_upper,
+                            )
+                            for s in edge.services
+                            if s != service
+                        ]
+                        # Add temporarily occupied wavelengths to the list
+                        if tmp_occupied and edge.id in tmp_occupied:
+                            occupied_wavelengths.extend(tmp_occupied[edge.id])
+                        available_wavelengths = find_available_wavelengths(
+                            occupied_wavelengths, service.wavelength_size()
+                        )
+                        if previous_edge[current_node.id] != -1:
+                            available_wavelengths = merge_wavelenghts(
+                                available_wavelengths,
+                                edge_available_wl[previous_edge[current_node.id]],
+                                service.wavelength_size(),
+                            )
+                        constraint_violated = not available_wavelengths
+                    else:
+                        constraint_violated = self.constraint_edge(
+                            edge, service, tmp_occupied
+                        )
 
                     if (
                         not constraint_violated
@@ -163,12 +252,27 @@ class Graph:
                         distance_from_start[neighbor_node] = new_path
                         previous_node[neighbor_node] = current_node.id
                         previous_edge[neighbor_node] = edge.id
+                        if wl:
+                            edge_available_wl[edge.id] = available_wavelengths
+
             if current_node.id == service.destination:
                 break
 
         if previous_node[service.destination] == -1:
             return False
 
+        wl_lower = service.wavelength_lower
+        wl_upper = service.wavelength_upper
+        if wl:
+            available_wavelengths = edge_available_wl[
+                previous_edge[service.destination]
+            ]
+            # Sort by size of the available wavelengths
+            available_wavelengths.sort(key=lambda w: w[1] - w[0])
+            wl_lower, wl_upper = (
+                available_wavelengths[0][0],
+                available_wavelengths[0][0] + service.wavelength_size() - 1,
+            )
         # Reconstruct path
         path: list[int] = []
         current_node = service.destination
@@ -176,7 +280,7 @@ class Graph:
             path.append(previous_edge[current_node])
             current_node = previous_node[current_node]
         path.reverse()
-        return path
+        return path, (wl_lower, wl_upper)
 
 
 @dataclass
@@ -195,10 +299,26 @@ def get_replans(graph: Graph, broken_edge: int):
     # Sort services by value (descending)
     affected_services.sort(key=lambda s: s.value, reverse=True)
     successful_replans: list[Replan] = []
+    temporarily_occupied: dict[int, list[tuple[int, int]]] = {}
     for service in affected_services:
-        path = graph.shortest_path(service)
+        path = graph.shortest_path(service, temporarily_occupied)
+        if path is False:
+            path = graph.shortest_path(
+                service, wl=True, tmp_occupied=temporarily_occupied
+            )
         if path is False:
             continue
+        path, wl = path
+        if wl[0] != service.wavelength_lower or wl[1] != service.wavelength_upper:
+            # Add original wavelength range to the temporarily occupied list
+            for edge in service.edges:
+                if edge not in temporarily_occupied:
+                    temporarily_occupied[edge] = []
+                temporarily_occupied[edge].append(
+                    (service.wavelength_lower, service.wavelength_upper)
+                )
+        service.wavelength_lower = wl[0]
+        service.wavelength_upper = wl[1]
         # Remove service from the edges
         for edge in service.edges:
             for s in graph.edges[edge - 1].services:
@@ -214,10 +334,7 @@ def get_replans(graph: Graph, broken_edge: int):
         successful_replans.append(
             Replan(
                 service_idx=service.id,
-                edges=[
-                    (e, service.wavelength_lower, service.wavelength_upper)
-                    for e in path
-                ],
+                edges=[(e, wl[0], wl[1]) for e in path],
             )
         )
         service.edges = [edge for edge in path]
@@ -239,39 +356,8 @@ def get_recovery_rate(graph: Graph, edge: Edge) -> float:
 def main():
     nodes_o, edges_o, services_o = read_environment()
     graph_o = Graph(nodes_o, edges_o, services_o)
-    # Generate test scenarios by finding edges with highest recovery rate
-    test_scenarios: list[list[int]] = []
-    edges = deepcopy(edges_o)
-    edges.sort(
-        key=lambda e: sum(services_o[s - 1].value for s in e.services), reverse=True
-    )
-    # Take the top 30% of edges
-    edges = edges[: int(len(edges) * 0.3)]
-    edges.sort(
-        key=lambda e: get_recovery_rate(deepcopy(graph_o), e),
-        reverse=True,
-    )
-    # Take the top 30% of edges
-    edges = edges[: int(len(edges) * 0.3)]
-    edges.sort(
-        key=lambda e: sum(services_o[s - 1].value for s in e.services), reverse=True
-    )
-    # Split into 29 scenarios
-    num_edges_per_scenario = len(edges) // 29
-    for i in range(29):
-        test_scenarios.append(
-            [
-                e.id
-                for e in edges[
-                    i * num_edges_per_scenario : (i + 1) * num_edges_per_scenario
-                ]
-            ]
-        )
 
-    print(len(test_scenarios))  # Number of test scenarios
-    for scenario in test_scenarios:
-        print(len(scenario))
-        print(" ".join(str(e) for e in scenario))
+    print("0")
 
     num_scenarios = int(input_c())
 
