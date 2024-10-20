@@ -266,7 +266,6 @@ void Output_Scenarios() {
 
 void detect_need_to_replan(vector<Service>* services, int e_failed, int* num_need_to_replan) {
     for (vector<Service>::iterator iter = (*services).begin(); iter != (*services).end(); iter++) {
-        int idx = 0;
         (*iter).need_to_replan = false;
         if (!(*iter).alive) {
             continue;
@@ -274,9 +273,7 @@ void detect_need_to_replan(vector<Service>* services, int e_failed, int* num_nee
         for (vector<int>::iterator iter2 = (*iter).path.begin(); iter2 != (*iter).path.end(); iter2++) {
             if (e_failed == (*iter2)) {
                 (*iter).need_to_replan = true;
-                (*iter).hold_resource_edges[idx] = false;
             }
-            idx++;
         }
         if ((*iter).need_to_replan) {
             (*num_need_to_replan)++;
@@ -524,13 +521,15 @@ void priorityQueueSearch(
     vector<vector<int>> replan_idx_priority;
     replan_idx_priority.resize(num_need_to_replan);
     int max_value = 0;
+    int replan_idx = -1;
     for (int i = 0; i < service_number; i++) {
         if ((*services)[i].need_to_replan) {
+            replan_idx++;
             vector<int> svc_id_priority;
             svc_id_priority.resize(2);
             svc_id_priority[0] = i;
             svc_id_priority[1] = (*services)[i].right_channel - (*services)[i].left_channel + 1;
-            replan_idx_priority[i]=(svc_id_priority);
+            replan_idx_priority[replan_idx]=(svc_id_priority);
             if ((*services)[i].service_value > max_value) {
                 max_value = (*services)[i].service_value;
             }
@@ -643,7 +642,7 @@ void priorityQueueSearch(
                             newLeftChannelList.push_back(current_left_channel);
                             newRightChannelLiet.push_back(current_right_channel);
                             newUsingSwitch.push_back(false);
-                            int newCost = current.cost + costCalc(
+                            float newCost = current.cost + costCalc(
                                 edge_importance, 
                                 current_left_channel, 
                                 current_right_channel,
@@ -660,7 +659,7 @@ void priorityQueueSearch(
                         //信道转换的方案
                         if ((*nodes)[current.id - 1].switching_times > 0) {
                             float edge_importance = edges_current[neighbor_edge].importance;
-                            int surplus_switch_times = (*nodes)[current.id - 1].switching_times - 1;
+                            int surplus_switch_times = (*nodes)[current.id - 1].switching_times;
                             vector<int> newEdgeIndices = current.edgeIndices;
                             vector<int> newNodeIndices = current.nodeIndices;
                             vector<int> newLeftChannelList = current.left_channel_list;
@@ -675,7 +674,7 @@ void priorityQueueSearch(
                             plan_channel_switch(edges_current[neighbor_edge].wave_length_occupied, &changed_left_channel, &changed_right_channel);
                             newLeftChannelList.push_back(changed_left_channel);
                             newRightChannelLiet.push_back(changed_right_channel);
-                            int newCost = current.cost + costCalc(
+                            float newCost = current.cost + costCalc(
                                 edge_importance,
                                 changed_left_channel,
                                 changed_right_channel,
@@ -715,6 +714,10 @@ void rePlan(vector<Service>* services, vector<Edge>* edges, vector<Node>* nodes,
         if ((*edges)[i].importance > standardize_edge_importance) {
             standardize_edge_importance = (*edges)[i].importance;
         }
+    }
+
+    if (num_need_to_replan > 0) {
+        int a = 1;
     }
     
     //尝试权重1
