@@ -1,0 +1,105 @@
+
+Simulate input
+
+max delay overtime
+
+Parts 
+
+    Input
+    Score 
+    Constraints
+    Rules
+
+1 Run packet.py 
+2 Give it input using the system’s standard input stream stream
+3 The code should print output stream 
+4 evaluate it.
+
+
+<Score>
+The goal of the task can be modeled as:
+
+max (sum(fi / n) + (10000 / max(Delay_i)))
+
+Where:
+	•	fi = 1 if Delay_i ≤ UBD_i
+	•	fi = 0 if Delay_i > UBD_i
+	•	Delay_i = max(te_ij - ts_ij) for all j
+where  f_i  indicates whether the maximum scheduling waiting delay of the ith slice ( Delay_i ) exceeds 
+the maximum delay tolerable by the slice ( UBD_i ) (which is a slice attribute and is provided in the input). 
+If  Delay_i  does not exceed  UBD_i , then  f_i = 1 , else  f_i = 0. Delay_i  is a maximum value of the leave 
+time minus the arrival time of all packets in the ith slice.  n  indicates the total number of slice users.
+
+
+Print these values
+    Score
+
+    for delay, 
+        maxdelay 
+        and it's slice & packet id
+        avg (as well as % compared to max) 
+        mid point (as well as % compared to max) 
+        top 3 delay value
+        standard deviation
+
+    for fi
+        ((fi=1)/across all cases) and in terms of (%)
+        (sum(fi / n))
+
+</Score>
+
+<Delay>
+Constraint 1. 
+        Scheduling output sequence must meet the port bandwidth constraint (PortBW). 
+        the following requirements must be met.
+            {te_{k,m} - te_{i,j}} => PktSize_{i,j}/PortBW  
+
+        te_{i,j}        leave time of previous packet
+        te_{k,m}        leave time of next packet 
+        PktSize_{i,j}   size of the processing Packet 
+
+        Constraint 1 met
+        print
+        {te_{k,m} - te_{i,j}} = 
+        PktSize_{i,j}/PortBW = 
+        {te_{k,m} - te_{i,j}} => PktSize_{i,j}/PortBW by ?? (in terms of %)
+
+
+
+Constraint 2.
+        Output bandwidth constraint for the ith slice (SliceBW_i)
+
+        PacketSize_i/ te_{i,m} - ts_{i,1} => SliceBW_i * 0.95
+        
+        PacketSize_i    sum of all packetsize in a slice
+        te_{i,m}        departure time of last packet in the ith slice
+        ts_{i,1}        arrival time of first packet in the ith slice 
+
+        if Constraint met 
+        print SliceBW_i * 0.95 
+        for PacketSize_i/ te_{i,m} - ts_{i,1} => SliceBW_i * 0.95
+        Print avg, Print mid point, print standard deviation  ((in terms of %))
+        Print the min of it( which is case that closest to exceeding this constraint) ((in terms of %))
+
+Constraint 3 
+        Packets in the same slice must leave in the order in which they arrived, 
+        and the packet leaving time must be longer than the packet arrival time.
+        
+        te_{i,j+1} => te_{i,j}
+        te_{i,j} => ts_{i,j}
+
+        if Constraint 3 met 
+        for te_{i,j} => ts_{i,j}
+            (i want to know how much leaving time exceed the packet arrival time.)
+            Print avg, Print mid point, print standard deviation of ( te_{i,j+1} - te_{i,j})   ( in temrs of % of (ts_{i,j})/(te_{i,j}) )
+           
+            Print the 1 case that closest to exceeding this constraint ( te_{i,j+1} - te_{i,j}) ( in temrs of % of (ts_{i,j})/(te_{i,j}) )
+</Delay>
+
+<Rules>
+    Must have rules for the code 
+        Num Output set of packet has to equal to input set (num slice users) **
+        Runtime has to be < 2 min * 
+        The Output Slice ID and Packet ID must start from 0.
+        The timestamp of packets (te_{i,j} & ts_{i,j} etc )must be an integer, which unit is ns.
+</Rules>

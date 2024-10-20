@@ -1,0 +1,37 @@
+<input>
+
+goal: 
+    to generate simulated input
+
+Line 1: 
+    Number of slice users n (1<=n<=10,000), PortBW(Gbps) 
+    PortBW(Gbps) 
+Line 2: 
+    number of first slice packets m_1, slice bandwidth SliceBW_1, and maximum slice delay tolerance UBD_1
+Line 3: (sequence information about the first slice)
+    ts_{1,1} PktSize_{1,1} ts_{1,2} PktSize_{1,2} \ldots ts_{1,m1} PktSize_{1,m1} 
+    ...
+Line 2n: number of slice packets m_n, slice bandwidth SliceBW_n, and maximum slice delay tolerance UBD_n 
+Line 2n+1: sequence information of the nth slice ts_{n,1} PktSize_{n,1} ts_{n,2} PktSize_{n,2} \ldots ts_{n,mn} PktSize_{n,mn} 
+
+Number of slice users n must be (1<=n<=10,000)
+PktSize value ranges from 512 bit to 76800 bit.
+SliceBW ranges from 0.01Gbps to 10Gbps.
+PortBW is a constant ranges from 1 Gbps to 800 Gbps.
+
+For now assume 
+number of first slice packets m_1 = 3
+UBD = 30000
+
+
+
+Example Input 
+    Input
+    2 2 
+    3 1 30000 
+    0 8000 1000 16000 3000 8000 
+    3 1 30000 
+    0 8000 1000 16000 3000 8000 
+
+
+</input>

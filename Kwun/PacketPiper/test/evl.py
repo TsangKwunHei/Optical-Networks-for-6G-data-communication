@@ -6,59 +6,35 @@ from collections import deque
 
 def main():
     import sys
-    '''
-    In this code it's just for me simulating Input
-    with my own head so to have a better understanding
-    of bottleneck. The plan is to keep finding the weakness of this code and then,
-    by fixing the weakness, improve the score.
-    '''
+
     # Read all input data
     data = sys.stdin.read().split()
     idx = 0 # Count
-    '''
-    Example Input
-    2 2 
-    3 1 30000 
-    0 8000 1000 16000 3000 8000 
-    3 1 30000 
-    0 8000 1000 16000 3000 8000 
-    '''
     # Number of slices and PortBW
-    n = int(data[idx]); idx += 1  #  num slice users = 2
-    PortBW_Gbps = float(data[idx]); idx += 1  # in Gbps
-    PortBW = PortBW_Gbps   # PortBW_Gbps = 2 
+    # Output packet num has to equal input packet num
+    n = int(data[idx]); idx += 1  #(1 < n <= 10000),
+    PortBW_Gbps = float(data[idx]); idx += 1  # <= Gbps <= 800 Gbps
+    PortBW = PortBW_Gbps 
 
     slices = []
     all_packets = []
 
-    for slice_id in range(n): # 2pkgs
+    for slice_id in range(n):  
         m_i = int(data[idx]); idx += 1 # num slice packets 
-        SliceBW_i = float(data[idx]); idx += 1  # in Gbps
+        SliceBW_i = float(data[idx]); idx += 1  # SliceBW ranges from 0.01Gbps to 10Gbp
         UBD_i = int(data[idx]); idx += 1  # slice delay tolerance
-        '''
-        Slice   SliceBW_i   UBD     num_slice_packets(m_n)
-        1       1           3000    3
-        2       1           3000    3
-        '''
+   
         # sequence information about the indiviual slice
         packets = []
         for pkt_id in range(m_i):
-            '''
-            s.p     UBD         ts      Deadline
-            s1.p1   30000       0       30000
-            s2.p1   30000       0       30000
-            s1.p2   30000       1000    31000
-            s2.p2   30000       1000    31000
-            s1.p3   30000       3000    33000
-            s2.p3   30000       3000    33000
-            '''
+   
             ts = int(data[idx]); idx += 1  # arrival time in ns
-            pkt_size = int(data[idx]); idx += 1  # in bits
+            pkt_size = int(data[idx]); idx += 1  # 512 bit <= pkt_size <= 76800 bit.
             deadline = ts + UBD_i
             packet = {
-                'ts': ts, # s1: 0, 1000, 3000,  s2: 0, 1000, 3000
-                'pkt_size': pkt_size, #s1{800, 16000, 8000}; s2{800, 16000, 8000};
-                'pkt_id': pkt_id,  # s1:{1,2,3} s2:{1,2,3}
+                'ts': ts,  
+                'pkt_size': pkt_size,  
+                'pkt_id': pkt_id,  
                 'slice_id': slice_id,  #s1:{1}; s2:{2}
                 'deadline': deadline #s1:{}; s2:{}
             }
@@ -92,7 +68,7 @@ def main():
     1 takes each element in the list (temporarily calling it pkt) 
     2 returns its timestamp ('ts'), which will be used as the key for sorting.
     (pkt is just a temporary name for each element)
-    
+
     For desending : all_packets.sort(key=lambda pkt: pkt['ts'], reverse=True)
     '''
     #sorted as s1.p1, s2.p1, s1.p2, s2.p2, s1.p3, s2.p3.
@@ -100,7 +76,6 @@ def main():
     total_packets = len(all_packets) #2x3 = 6
 
     # Scheduled packets list
-    # scheduled_packets
     scheduled_packets = [] # empty
 
     # Initialize variables
@@ -182,13 +157,13 @@ def main():
 
         # Pop the packet with the highest priority
         ''' For Example input, this'll be run 6 times
-        s.p     idx     ts      Deadline    Pop_order   sliceid
-        s1.p1   0       0       30000       1           1
-        s2.p1   1       0       30000       2           2
-        s1.p2   2       1000    31000       3           1
-        s2.p2   3       1000    31000       4           2
-        s1.p3   4       3000    33000       5           1
-        s2.p3   5       3000    33000       6           2
+        s.p     pkt_idx     ts      Deadline    Pop_order   sliceid
+        s1.p1       0       0       30000       1           1
+        s2.p1       1       0       30000       2           2
+        s1.p2       2       1000    31000       3           1
+        s2.p2       3       1000    31000       4           2
+        s1.p3       4       3000    33000       5           1
+        s2.p3       5       3000    33000       6           2
         '''
         _, pkt = heapq.heappop(heap)
         slice_id = pkt['slice_id']
@@ -225,7 +200,13 @@ def main():
 
         ensures that the next packet from the slice is ready to be processed and scheduled.
 
+        s['packets] pop order
+        s1 
+        s2 
+        s1
+        s2
         '''
+        
         if s['packets']:
             next_packet = s['packets'].popleft()
         else:
@@ -236,6 +217,18 @@ def main():
         '''Experiment_Result : 
         deleting current_time & s['last_te'] doesn't make changes to score or casue error,
           they're not used as decision variable at any given peroid'''
+        ''' For Example input, this'll be run 6 times
+              
+        '''
+        ''' For Example input, this'll be run 6 times
+        step    current_time    ts      s[last_te]      port_available_time   te
+        1       0               0        None           4000                  4000                 
+        2       0               0        None           4000                  4000
+        3       0               1000     4000           9000                  9000
+        4       0               1000     4000           9000                  9000
+        5       0               3000     9000           7000                  9000
+        6       0               3000     9000           7000                  9000
+        ''' 
         te_candidate = max(current_time, pkt['ts'], s['last_te'], port_available_time)
         te = math.ceil(te_candidate)
         '''Constraint 1. 
@@ -246,6 +239,15 @@ def main():
         te_{i,j}        leave time of previous packet
         te_{k,m}        leave time of next packet 
         PktSize_{i,j}   size of the processing Packet 
+        '''
+        ''' For Example input, this'll be run 6 times
+        s.p     pkt_idx     te      pkt_size   pkt_size/PortBW (2)    
+        s1.p1       0       0       8000       4000
+        s2.p1       1       0       8000       4000
+        s1.p2       2       1000    16000      8000
+        s2.p2       3       1000    16000      8000
+        s1.p3       4       3000    8000       4000
+        s2.p3       5       3000    8000       4000
         '''
         # Calculate transmission time
         transmission_time = math.ceil(pkt['pkt_size'] / PortBW)
@@ -269,20 +271,59 @@ def main():
         '''
         total_bits_sent = pkt_size
         '''
+        ''' For Example input, this'll be run 6 times
+        s.p     pkt_idx     te      ts      delay   max_delay
+        s1.p1       0       0       0       4000    4000
+        s2.p1       1       0       0       4000    4000
+        s1.p2       2       1000    1000    8000    8000
+        s2.p2       3       1000    1000    8000    8000
+        s1.p3       4       3000    3000    6000    6000
+        s2.p3       5       3000    3000    6000    6000
+        '''
         s['total_bits_sent'] += pkt['pkt_size']
         delay = te - pkt['ts']
         if delay > s['max_delay']:
             s['max_delay'] = delay
 
+        ''' For Example input, this'll be run 6 times
+        order   te      slice_id     pkt[pkt_id]
+        1       0           0              0
+        2       4000        1              0
+        3       1000        0              1
+        4       1000        1              1
+        5       3000        0              2
+        6       3000        1              2
+
+        6
+        0 0 0 4000 1 0 1000 0 1 1000 1 1 3000 0 2 3000 1 2
+        ''' 
         # Record the scheduled packet
         scheduled_packets.append((te, slice_id, pkt['pkt_id']))
 
         # Advance current time
         current_time = te
 
+
     # After scheduling, verify and adjust to meet slice bandwidth constraints
 
+    # Calculate the score based on the problem's scoring formula
+    fi_sum = 0
+    max_delay = 0
+    for s in slices:
+        fi = 1 if s['max_delay'] <= s['UBD_i'] else 0
+        fi_sum += fi / n
+        if s['max_delay'] > max_delay:
+            max_delay = s['max_delay']
+            max_delay_te = s 
+    if max_delay > 0:
+        score = fi_sum + (10000 / max_delay)
+    else:
+        # Handle division by zero if max_delay is 0
+        score = fi_sum + 10000
+      
     # Output generation
+    # K has to equal to n(num slice users)
+    # Runtime has to be < 2 min
     K = len(scheduled_packets)
     print(K)
     output = []

@@ -19,6 +19,7 @@ def main():
     slices = []
     all_packets = []
     '''
+    Example Input
     2 2 
     3 1 30000 
     0 8000 1000 16000 3000 8000 

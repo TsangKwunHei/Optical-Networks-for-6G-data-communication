@@ -48,4 +48,4 @@
         get packet with highest priority
         move current time to next
 
-     Determine earliest possible departure time
+    Determine earliest possible departure time
