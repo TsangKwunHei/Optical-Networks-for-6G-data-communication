@@ -244,12 +244,17 @@ int T = 0;
 void Output_Scenarios() {
     T1 = 30;
     cout << T1 << endl;
+    int max_failure_number = 60;
+    if (edge_number / 2 < max_failure_number) {
+        max_failure_number = edge_number / 2;
+    }
     for (int i = 0; i < T1; i++) {
-        int failure_nuber = randi(1, 60);
+        int failure_nuber = randi(1, max_failure_number);
+        cout << failure_nuber << endl;
         vector<int> randlist;
         randlist.resize(edge_number);
         for (int j = 0; j < edge_number; j++) {
-            randlist[j] = j;
+            randlist[j] = j + 1;
         }
         random_shuffle(randlist.begin(), randlist.end());
         for (int j = 0; j < failure_nuber; j++) {
