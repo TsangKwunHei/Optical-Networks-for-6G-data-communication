@@ -2,7 +2,7 @@ import random
 import os
 
 slice_users = random.randint(1, 100) #  (1 ≤ n ≤ 10000)
-port_bw = random.randint(1, 100)  # From 1 Gbps to 800 Gbps.
+port_bw = random.randint(1, 800)  # From 1 Gbps to 800 Gbps.
 
 def generate_input():
     """Generates input data and writes it to a text file in the current script directory."""
@@ -25,7 +25,7 @@ def generate_input():
 
         for i in range(1, n + 1):
             # Generate m_i: number of packets in slice i (randomly chosen up to 1000)
-            m_i = random.randint(1, 1000)
+            m_i = random.randint(1, 3)
             # Generate SliceBW_i: slice bandwidth (0.01 Gbps to 10 Gbps) - This remains a decimal
             slice_bw_i = round(random.uniform(0.01, 10), 2)
             # Generate UBD_i: maximum slice delay tolerance (random integer in nanoseconds)

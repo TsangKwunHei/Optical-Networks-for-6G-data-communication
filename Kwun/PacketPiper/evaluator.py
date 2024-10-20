@@ -176,15 +176,19 @@ def main():
         pkt_size = pkt_info['pkt_size']
 
         if prev_te is not None and prev_pkt_size is not None:
-            required_gap = math.ceil(prev_pkt_size / port_bw * 1e9)  # Convert to ns
+            required_gap = prev_pkt_size / port_bw  # In seconds
+            required_gap_ns = required_gap * 1e9  # Convert to ns
             actual_gap = te_km - prev_te
-            meets_constraint = actual_gap >= required_gap
+            meets_constraint = actual_gap >= required_gap_ns
+            percentage_exceed = ((actual_gap - required_gap_ns) / required_gap_ns) * 100 if required_gap_ns > 0 else 0
             constraint1_checks.append({
-                'prev_te': prev_te,
-                'te_km': te_km,
-                'prev_pkt_size': prev_pkt_size,
-                'required_gap': required_gap,
-                'actual_gap': actual_gap,
+                'te_i_j': prev_te,
+                'te_k_m': te_km,
+                'PktSize_i_j': prev_pkt_size,
+                'PortBW': port_bw,
+                'te_k_m_minus_te_i_j': actual_gap,
+                'PktSize_div_PortBW': required_gap_ns,
+                'percentage_exceed': percentage_exceed,
                 'meets_constraint': meets_constraint
             })
         prev_te = te_km
@@ -208,7 +212,7 @@ def main():
 
         previous_te = None
 
-        for idx, scheduled_pkt in enumerate(scheduled_packets):
+        for idx_p, scheduled_pkt in enumerate(scheduled_packets):
             pkt_id = scheduled_pkt['pkt_id']
             te_ij = scheduled_pkt['te']
 
@@ -217,25 +221,31 @@ def main():
             ts_ij = pkt_info['ts']
             pkt_size = pkt_info['pkt_size']
 
-            # Constraint 3: te_{i,j} ≥ ts_{i,j}
-            meets_constraint = te_ij >= ts_ij
+            # Constraint 3: te_{i,j} >= ts_{i,j}
+            meets_constraint_ts = te_ij >= ts_ij
+            exceed_amount = te_ij - ts_ij
             constraint3_checks.append({
+                'constraint': 'te_{i,j} >= ts_{i,j}',
                 'slice_id': slice_id,
                 'pkt_id': pkt_id,
-                'te': te_ij,
-                'ts': ts_ij,
-                'meets_constraint': meets_constraint
+                'te_ij': te_ij,
+                'ts_ij': ts_ij,
+                'exceed_amount': exceed_amount,
+                'meets_constraint': meets_constraint_ts
             })
 
-            # Constraint 3: te_{i,j+1} ≥ te_{i,j}
+            # Constraint 3: te_{i,j+1} >= te_{i,j}
             if previous_te is not None:
-                meets_constraint = te_ij >= previous_te
+                meets_constraint_te = te_ij >= previous_te
+                gap = te_ij - previous_te
                 constraint3_checks.append({
+                    'constraint': 'te_{i,j+1} >= te_{i,j}',
                     'slice_id': slice_id,
                     'pkt_id': pkt_id,
-                    'te': te_ij,
-                    'prev_te': previous_te,
-                    'meets_constraint': meets_constraint
+                    'te_current': te_ij,
+                    'te_previous': previous_te,
+                    'gap': gap,
+                    'meets_constraint': meets_constraint_te
                 })
             previous_te = te_ij
 
@@ -260,18 +270,25 @@ def main():
                 te_i_m = te_ij
 
         # Constraint 2: Output bandwidth constraint
-        if te_i_m != ts_i_1:
-            actual_bw = total_bits_sent / (te_i_m - ts_i_1)  # in bits/ns
+        time_diff = te_i_m - ts_i_1
+        if time_diff > 0:
+            actual_bw = total_bits_sent / time_diff  # in bits/ns
         else:
             actual_bw = float('inf')
         required_bw = 0.95 * slice_info['slice_bw'] / 1e9  # Convert to bits/ns
 
-        meets_constraint = actual_bw >= required_bw
+        meets_constraint_bw = actual_bw >= required_bw
+        percentage_exceed = ((actual_bw - required_bw) / required_bw) * 100 if required_bw > 0 else 0
         constraint2_checks.append({
             'slice_id': slice_id,
-            'actual_bw': actual_bw,
-            'required_bw': required_bw,
-            'meets_constraint': meets_constraint
+            'PacketSize_i': total_bits_sent,
+            'te_i_m': te_i_m,
+            'ts_i_1': ts_i_1,
+            'PacketSize_i_div_time_diff': total_bits_sent / time_diff if time_diff > 0 else float('inf'),
+            'SliceBW_i_times_0.95': required_bw,
+            'Actual_BW': actual_bw,
+            'percentage_exceed': percentage_exceed,
+            'meets_constraint': meets_constraint_bw
         })
 
         # Calculate fi
@@ -282,7 +299,7 @@ def main():
 
     # Calculate score
     n = num_slices
-    fi_sum = sum(fi_values) / n
+    fi_sum = sum(fi_values) / n if n > 0 else 0
     max_delay = max(delays) if delays else 0
     if max_delay > 0:
         score = fi_sum + (10000 / max_delay)
@@ -291,30 +308,36 @@ def main():
 
     # Print Score and delay statistics
     if EVALUATE_SCORE:
-        print(f"\n=== Evaluation Summary ===")
+        print("\n=== Score ===")
         print(f"Score: {score:.4f}")
 
         # Delay statistics
-        print("\n--- Delay Statistics ---")
+        print("\n=== Delay Statistics ===")
         if delays:
             max_delay_value = max(delays)
-            max_delay_info = max(delay_info, key=lambda x: x['delay'])
+            max_delay_packet = max(delay_info, key=lambda x: x['delay'])
             avg_delay = sum(delays) / len(delays)
             median_delay = statistics.median(delays)
-            std_delay = statistics.stdev(delays) if len(delays) > 1 else 0
+            std_delay = int(statistics.stdev(delays)) if len(delays) > 1 else 0
             top_3_delays = sorted(delays, reverse=True)[:3]
 
-            print(f"Max Delay: {max_delay_value} ns (Slice {max_delay_info['slice_id']}, Packet {max_delay_info['pkt_id']})")
-            print(f"Average Delay: {avg_delay:.2f} ns ({(avg_delay / max_delay_value) * 100:.2f}% of max)")
-            print(f"Median Delay: {median_delay:.2f} ns ({(median_delay / max_delay_value) * 100:.2f}% of max)")
-            print(f"Top 3 Delays: {top_3_delays}")
-            print(f"Standard Deviation: {std_delay:.2f} ns")
+            avg_delay_pct = (avg_delay / max_delay_value) * 100 if max_delay_value > 0 else 0
+            median_delay_pct = (median_delay / max_delay_value) * 100 if max_delay_value > 0 else 0
+
+            min_delay_value = min(delays)
+            min_delay_packet = min(delay_info, key=lambda x: x['delay'])
+
+            print(f"Max Delay: {max_delay_value} ns (Slice {max_delay_packet['slice_id']}, Packet {max_delay_packet['pkt_id']})")
+            print(f"Min Delay: {min_delay_value} ns (Slice {min_delay_packet['slice_id']}, Packet {min_delay_packet['pkt_id']})")
+            print(f"Average Delay: {avg_delay:.2f} ns")
+            print(f"Median Delay: {median_delay:.2f} ns")
+            print(f"Standard Deviation: {std_delay} ns")
         else:
             print("No delays recorded.")
 
         # fi statistics
-        fi_percentage = (sum(fi_values) / len(fi_values)) * 100
-        print(f"\n--- fi Statistics ---")
+        fi_percentage = (sum(fi_values) / len(fi_values)) * 100 if fi_values else 0
+        print("\n=== fi Statistics ===")
         print(f"fi=1 for {sum(fi_values)} slices out of {n} ({fi_percentage:.2f}%)")
         print(f"Sum(fi / n): {fi_sum:.4f}")
 
@@ -329,10 +352,15 @@ def main():
             print("\n=== Constraint 1 Violations (Port Bandwidth Constraint) ===")
             for check in constraint1_checks:
                 if not check['meets_constraint']:
-                    actual_gap = check['actual_gap']
-                    required_gap = check['required_gap']
-                    percentage = (actual_gap / required_gap) * 100 if required_gap > 0 else 0
-                    print(f"At te={check['te_km']}: Actual gap {actual_gap} ns, Required gap {required_gap} ns ({percentage:.2f}% of required)")
+                    te_i_j = check['te_i_j']
+                    te_k_m = check['te_k_m']
+                    PktSize_i_j = check['PktSize_i_j']
+                    PortBW = check['PortBW']
+                    actual_gap = check['te_k_m_minus_te_i_j']
+                    required_gap = check['PktSize_div_PortBW']
+                    percentage_exceed = check['percentage_exceed']
+                    print(f"te_km - te_i_j: {actual_gap} ns >= PktSize_i_j / PortBW: {required_gap} ns")
+                    print(f"Actual gap exceeds required gap by {percentage_exceed:.2f}%\n")
 
         # Constraint 2 Checks
         constraint2_met = all(check['meets_constraint'] for check in constraint2_checks)
@@ -341,10 +369,17 @@ def main():
             print("\n=== Constraint 2 Violations (Output Bandwidth Constraint) ===")
             for check in constraint2_checks:
                 if not check['meets_constraint']:
-                    actual_bw_gbps = check['actual_bw'] * 1e9  # Convert to Gbps
-                    required_bw_gbps = check['required_bw'] * 1e9  # Convert to Gbps
-                    percentage = (actual_bw_gbps / required_bw_gbps) * 100 if required_bw_gbps > 0 else 0
-                    print(f"Slice {check['slice_id']}: Actual BW = {actual_bw_gbps:.6f} Gbps, Required BW = {required_bw_gbps:.6f} Gbps ({percentage:.2f}% of required)")
+                    slice_id = check['slice_id']
+                    packet_size_i = check['PacketSize_i']
+                    te_i_m = check['te_i_m']
+                    ts_i_1 = check['ts_i_1']
+                    actual_bw = check['Actual_BW']
+                    required_bw = check['SliceBW_i_times_0.95']
+                    percentage_exceed = check['percentage_exceed']
+                    print(f"Slice {slice_id}:")
+                    print(f"  PacketSize_i / (te_i_m - ts_i_1): {packet_size_i} / {te_i_m - ts_i_1} = {check['PacketSize_i_div_time_diff']:.6f} bits/ns")
+                    print(f"  Required BW: {required_bw:.6f} bits/ns (SliceBW_i * 0.95)")
+                    print(f"  Actual BW exceeds required BW by {percentage_exceed:.2f}%\n")
 
         # Constraint 3 Checks
         constraint3_met = all(check['meets_constraint'] for check in constraint3_checks)
@@ -353,78 +388,103 @@ def main():
             print("\n=== Constraint 3 Violations (Packet Scheduling Sequence Constraint) ===")
             for check in constraint3_checks:
                 if not check['meets_constraint']:
-                    if 'prev_te' in check:
-                        print(f"Slice {check['slice_id']}, Packet {check['pkt_id']}: te_{check['pkt_id']} ({check['te']}) < te_{check['pkt_id'] - 1} ({check['prev_te']})")
-                    else:
-                        print(f"Slice {check['slice_id']}, Packet {check['pkt_id']}: te ({check['te']}) < ts ({check['ts']})")
+                    if check['constraint'] == 'te_{i,j} >= ts_{i,j}':
+                        slice_id = check['slice_id']
+                        pkt_id = check['pkt_id']
+                        te = check['te_ij']
+                        ts = check['ts_ij']
+                        exceed_amount = check['exceed_amount']
+                        print(f"Slice {slice_id}, Packet {pkt_id}: te ({te}) < ts ({ts})")
+                        print(f"  te exceeds ts by {exceed_amount} ns\n")
+                    elif check['constraint'] == 'te_{i,j+1} >= te_{i,j}':
+                        slice_id = check['slice_id']
+                        pkt_id = check['pkt_id']
+                        te_current = check['te_current']
+                        te_previous = check['te_previous']
+                        gap = check['gap']
+                        print(f"Slice {slice_id}, Packet {pkt_id}: te_current ({te_current}) < te_previous ({te_previous})")
+                        print(f"  te_current does not exceed te_previous by {gap} ns\n")
 
-        # Additional statistics for constraints
+        # *** Additional statistics for constraints ***
         # Constraint 1 Percentages
         if constraint1_checks:
-            percentages = []
-            for check in constraint1_checks:
-                if check['required_gap'] > 0:
-                    percentage = (check['actual_gap'] / check['required_gap']) * 100
-                    percentages.append(percentage)
-            if percentages:
-                avg_percentage = sum(percentages) / len(percentages)
-                median_percentage = statistics.median(percentages)
-                std_percentage = statistics.stdev(percentages) if len(percentages) > 1 else 0
-                min_percentage = min(percentages)
-                print("\n--- Constraint 1 Gap Percentages (Actual Gap / Required Gap) ---")
-                print(f"Average Percentage: {avg_percentage:.2f}%")
-                print(f"Median Percentage: {median_percentage:.2f}%")
-                print(f"Standard Deviation: {std_percentage:.2f}%")
-                print(f"Minimum Percentage: {min_percentage:.2f}% (Closest to violating the constraint)")
+            percentages_exceed_c1 = [check['percentage_exceed'] for check in constraint1_checks if check['PktSize_div_PortBW'] > 0]
+            if percentages_exceed_c1:
+                avg_pct_c1 = sum(percentages_exceed_c1) / len(percentages_exceed_c1)
+                median_pct_c1 = statistics.median(percentages_exceed_c1)
+                std_pct_c1 = statistics.stdev(percentages_exceed_c1) if len(percentages_exceed_c1) > 1 else 0
+                min_pct_c1 = min(percentages_exceed_c1)
+                print("\n--- Constraint 1 Percentage Exceedance ---")
+                print(f"Average Percentage Exceedance: {avg_pct_c1:.2f}%")
+                print(f"Median Percentage Exceedance: {median_pct_c1:.2f}%")
+                print(f"Standard Deviation: {std_pct_c1:.2f}%")
+                print(f"Minimum Percentage Exceedance: {min_pct_c1:.2f}% (Closest to violating the constraint)")
 
         # Constraint 2 Percentages
         if constraint2_checks:
-            percentages = []
-            for check in constraint2_checks:
-                required_bw = check['required_bw']
-                actual_bw = check['actual_bw']
-                if required_bw > 0:
-                    percentage = (actual_bw / required_bw) * 100
-                    percentages.append(percentage)
-            if percentages:
-                avg_percentage = sum(percentages) / len(percentages)
-                median_percentage = statistics.median(percentages)
-                std_percentage = statistics.stdev(percentages) if len(percentages) > 1 else 0
-                min_percentage = min(percentages)
-                print("\n--- Constraint 2 Bandwidth Percentages (Actual BW / Required BW) ---")
-                print(f"Average Percentage: {avg_percentage:.2f}%")
-                print(f"Median Percentage: {median_percentage:.2f}%")
-                print(f"Standard Deviation: {std_percentage:.2f}%")
-                print(f"Minimum Percentage: {min_percentage:.2f}% (Closest to violating the constraint)")
+            percentages_exceed_c2 = [check['percentage_exceed'] for check in constraint2_checks if check['SliceBW_i_times_0.95'] > 0]
+            if percentages_exceed_c2:
+                avg_pct_c2 = sum(percentages_exceed_c2) / len(percentages_exceed_c2)
+                median_pct_c2 = statistics.median(percentages_exceed_c2)
+                std_pct_c2 = statistics.stdev(percentages_exceed_c2) if len(percentages_exceed_c2) > 1 else 0
+                min_pct_c2 = min(percentages_exceed_c2)
+                print("\n--- Constraint 2 Percentage Exceedance ---")
+                print(f"Average Percentage Exceedance: {avg_pct_c2:.2f}%")
+                print(f"Median Percentage Exceedance: {median_pct_c2:.2f}%")
+                print(f"Standard Deviation: {std_pct_c2:.2f}%")
+                print(f"Minimum Percentage Exceedance: {min_pct_c2:.2f}% (Closest to violating the constraint)")
+
+        # Constraint 3 Delays
+        if delays:
+            avg_delay = sum(delays) / len(delays)
+            median_delay = statistics.median(delays)
+            std_delay = int(statistics.stdev(delays)) if len(delays) > 1 else 0
+            min_delay = min(delays)
+            min_delay_packet = min(delay_info, key=lambda x: x['delay'])
+            print("\n--- Constraint 3 Delays (te_{i,j} - ts_{i,j}) ---")
+            print(f"Average Delay: {avg_delay:.2f} ns")
+            print(f"Median Delay: {median_delay:.2f} ns")
+            print(f"Standard Deviation: {std_delay} ns")
+            print(f"Minimum Delay: {min_delay} ns (Slice {min_delay_packet['slice_id']}, Packet {min_delay_packet['pkt_id']})")
 
         # Constraint 3 Gaps
-        # Collect te_{i,j+1} - te_{i,j} for packets in the same slice
         te_gaps = []
+        te_gap_info = []
         for slice_info in slices_info:
             slice_id = slice_info['slice_id']
             scheduled_packets = [pkt for pkt in output_schedule if pkt['slice_id'] == slice_id]
             scheduled_packets.sort(key=lambda x: x['pkt_id'])
-            for idx in range(1, len(scheduled_packets)):
-                te_current = scheduled_packets[idx]['te']
-                te_previous = scheduled_packets[idx -1]['te']
+            for idx_p in range(1, len(scheduled_packets)):
+                te_current = scheduled_packets[idx_p]['te']
+                te_previous = scheduled_packets[idx_p -1]['te']
                 gap = te_current - te_previous
                 te_gaps.append(gap)
+                te_gap_info.append({
+                    'slice_id': slice_id,
+                    'pkt_id_current': scheduled_packets[idx_p]['pkt_id'],
+                    'pkt_id_previous': scheduled_packets[idx_p -1]['pkt_id'],
+                    'gap': gap
+                })
 
         if te_gaps:
             avg_gap = sum(te_gaps) / len(te_gaps)
             median_gap = statistics.median(te_gaps)
-            std_gap = statistics.stdev(te_gaps) if len(te_gaps) > 1 else 0
+            std_gap = int(statistics.stdev(te_gaps)) if len(te_gaps) > 1 else 0
             min_gap = min(te_gaps)
+            min_gap_info = min(te_gap_info, key=lambda x: x['gap'])
+
             print("\n--- Constraint 3 Departure Time Gaps (te_{i,j+1} - te_{i,j}) ---")
             print(f"Average Gap: {avg_gap:.2f} ns")
             print(f"Median Gap: {median_gap:.2f} ns")
-            print(f"Standard Deviation: {std_gap:.2f} ns")
-            print(f"Minimum Gap: {min_gap:.2f} ns (Closest to violating the constraint)")
+            print(f"Standard Deviation: {std_gap} ns")
+            print(f"Minimum Gap: {min_gap} ns (Slice {min_gap_info['slice_id']}, Packets {min_gap_info['pkt_id_previous']} -> {min_gap_info['pkt_id_current']})")
+        else:
+            print("\nNo gaps recorded for Constraint 3.")
 
     # Print runtime information
     runtime_per_slice = total_runtime / n if n > 0 else 0
     runtime_per_packet = total_runtime / total_packets if total_packets > 0 else 0
-    print(f"\n--- Runtime Information ---")
+    print("\n=== Runtime Information ===")
     print(f"Total Runtime: {total_runtime:.6f} seconds")
     print(f"Runtime per Slice: {runtime_per_slice:.6f} seconds (Total slices = {n})")
     print(f"Runtime per Packet: {runtime_per_packet:.6f} seconds (Total packets = {total_packets})")

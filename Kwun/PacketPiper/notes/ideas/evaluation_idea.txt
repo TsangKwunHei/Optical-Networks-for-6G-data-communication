@@ -1,10 +1,6 @@
 
-Simulate input
-
 <Overview of evaluation.py>
 max delay overtime
-
-
 
 1 Run packet.py  (in the excat folder that the code is located) 
 2 Give it input using the system’s standard input stream 
@@ -33,6 +29,7 @@ the maximum delay tolerable by the slice ( UBD_i ) (which is a slice attribute a
 If  Delay_i  does not exceed  UBD_i , then  f_i = 1 , else  f_i = 0. Delay_i  is a maximum value of the leave 
 time minus the arrival time of all packets in the ith slice.  n  indicates the total number of slice users.
 
+Low te_ij - ts_ij
 
 Print these values
     Score
@@ -63,11 +60,8 @@ Constraint 1.
 
         Constraint 1 met
         print
-        {te_{k,m} - te_{i,j}} = 
-        PktSize_{i,j}/PortBW = 
-        {te_{k,m} - te_{i,j}} => PktSize_{i,j}/PortBW by ?? (in terms of %)
 
-
+        Closest to violating constraint :  (min(({te_{k,m} - te_{i,j}} ) - (PktSize_{i,j}/PortBW) )/(PktSize_{i,j}/PortBW))
 
 Constraint 2.
         Output bandwidth constraint for the ith slice (SliceBW_i)
@@ -79,10 +73,10 @@ Constraint 2.
         ts_{i,1}        arrival time of first packet in the ith slice 
 
         if Constraint met 
-        print SliceBW_i * 0.95 
+        print
         for PacketSize_i/ te_{i,m} - ts_{i,1} => SliceBW_i * 0.95
-        Print avg, Print mid point, print standard deviation  ((in terms of %))
-        Print the min of it( which is case that closest to exceeding this constraint) ((in terms of %))
+
+        Closest to violating constraint : (min((PacketSize_i/ te_{i,m} - ts_{i,1}) - (SliceBW_i * 0.95) )/(SliceBW_i * 0.95)) (as well as %)
 
 Constraint 3 
         Packets in the same slice must leave in the order in which they arrived, 
@@ -92,11 +86,13 @@ Constraint 3
         te_{i,j} => ts_{i,j}
 
         if Constraint 3 met 
-        for te_{i,j} => ts_{i,j}
-            (i want to know how much leaving time exceed the packet arrival time.)
-            Print avg, Print mid point, print standard deviation of ( te_{i,j+1} - te_{i,j})   ( in temrs of % of (ts_{i,j})/(te_{i,j}) )
-           
-            Print the 1 case that closest to exceeding this constraint ( te_{i,j+1} - te_{i,j}) ( in temrs of % of (ts_{i,j})/(te_{i,j}) )
+        for  te_{i,j+1} => te_{i,j} ( Packets in the same slice must leave in the order in which they arrived )
+        Closest to violating constraint : min((te_{i,j+1} - te_{i,j})  )
+        
+        for te_{i,j} => ts_{i,j} ( packet leaving time must be longer than the packet arrival time. )
+        Closest to violating constraint : min((te_{i,j} - ts_{i,j})  )
+        
+       
 </Delay>
 
 <accessiories>

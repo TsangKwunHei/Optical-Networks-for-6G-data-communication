@@ -1,0 +1,6 @@
+
+
+
+A front-end panel to see the max delay. To see all the delays across the slicing network.
+A front-end panel that display all the delay across the slices in terms of a timeline format. 
+And so that we can see the maximum delay and everything is visualized. Including the max delay and the UBD.

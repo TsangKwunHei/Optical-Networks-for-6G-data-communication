@@ -180,7 +180,7 @@ def main():
         if slice_info['max_delay'] > max_delay:
             max_delay = slice_info['max_delay']
 
-    # Avoid division by zero by handling cases where max_delay is 0
+    # Section I made for debug (Useless to actual Output)
     if max_delay > 0:
         score = fi_sum + (10000 / max_delay)
     else:

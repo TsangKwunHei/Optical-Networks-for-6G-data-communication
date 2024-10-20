@@ -1,0 +1,27 @@
+
+
+
+1 If know 
+set of Packet j1  |  fi = 1  max(te_ij - ts_ij) for all j ≤ UBD_i 
+set of Packet j0  |  fi = 0  max(te_ij - ts_ij) for all j > UBD_i 
+(UBD is given, no limit of value specified in doc, in example it's 30000)
+
+which is 
+set of Packet j1  |  fi = 1  max(leave - arrive) ≤ UBD_i 
+set of Packet j0  |  fi = 0  max(leave - arrive) > UBD_i 
+Assume UBD is 30000 (simple case)
+
+if leave - arrive is small
+Good 
+
+
+
+If know (min(({te_{k,m} - te_{i,j}} ) - (PktSize_{i,j}/PortBW) )/(PktSize_{i,j}/PortBW))
+        
+
+If know (min((PacketSize_i/ te_{i,m} - ts_{i,1}) - (SliceBW_i * 0.95) )/(SliceBW_i * 0.95)) and max
+
+max(te_ij - ts_ij)
+max((PacketSize_i/ te_{i,m} - ts_{i,1}) - (SliceBW_i * 0.95) )/(SliceBW_i * 0.95)
+
+Closest to violating constraint :  (min(({te_{k,m} - te_{i,j}} ) - (PktSize_{i,j}/PortBW) )/(PktSize_{i,j}/PortBW))
