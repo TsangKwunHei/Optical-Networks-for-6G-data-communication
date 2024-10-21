@@ -809,6 +809,15 @@ void rePlan(vector<Service>* services, vector<Edge>* edges, vector<Node>* nodes,
                         (*nodes)[node_idx].switching_times--;
                     }
                 }
+                //更新占据的资源
+                for (int j = 0; j < (*services)[svc_idx].passed_edges.size(); j++) {
+                    int edge_idx = (*services)[svc_idx].passed_edges[j] - 1;
+                    int left_channel = (*services)[svc_idx].left_channel_per_edge[j];
+                    int right_channel = (*services)[svc_idx].right_channel_per_edge[j];
+                    for (int k = left_channel - 1; k < right_channel; k++) {
+                        (*edges)[edge_idx].wave_length_occupied[k] = true;
+                    }
+                }
             }
             else {
                 int svc_idx = -success_replan[i] - 1;
