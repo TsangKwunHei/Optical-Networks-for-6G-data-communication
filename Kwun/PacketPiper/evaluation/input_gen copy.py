@@ -1,8 +1,8 @@
 import random
 import os
 
-slice_users = random.randint(100, 1000) #  (1 ≤ n ≤ 10000)
-port_bw = random.randint(800, 800)  # From 1 Gbps to 800 Gbps.
+slice_users = random.randint(3, 1000) #  (1 ≤ n ≤ 10000)
+port_bw = random.randint(1, 800)  # From 1 Gbps to 800 Gbps.
 
 def generate_input():
     """Generates input data and writes it to a text file in the current script directory."""
@@ -25,12 +25,12 @@ def generate_input():
 
         for i in range(1, n + 1):
             # Generate m_i: number of packets in slice i (randomly chosen up to 1000)
-            m_i = random.randint(10, 100)
+            m_i = random.randint(1, 10)
             # Generate SliceBW_i: slice bandwidth (0.01 Gbps to 10 Gbps) - This remains a decimal
-            slice_bw_i = round(random.uniform(1, 10), 2)
+            slice_bw_i = round(random.uniform(0.01, 10), 2)
             #slice_bw_i = random.randint(1, 10)
             # Generate UBD_i: maximum slice delay tolerance (random integer in nanoseconds)
-            ubd_i = random.randint(30000, 30000)
+            ubd_i = random.randint(29000, 31000)
 
             # Write Line 2i: m_i, SliceBW_i, UBD_i
             line2i = f"{m_i} {slice_bw_i} {ubd_i}"
@@ -43,7 +43,7 @@ def generate_input():
             ts_prev = 0
             for j in range(m_i):
                 # Generate ts_{i,j}: arrival time of packet j (non-decreasing, integer)
-                ts_j = ts_prev + random.randint(0, 10000)  # Increment up to 10000 ns
+                ts_j = ts_prev + random.randint(0, 5000)  # Increment up to 10000 ns
                 ts_list.append(ts_j)
                 ts_prev = ts_j
                 # Generate PktSize_{i,j}: packet size (512 bits to 76800 bits, integer)
