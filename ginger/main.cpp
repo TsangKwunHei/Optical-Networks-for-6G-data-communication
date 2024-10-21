@@ -60,7 +60,28 @@ struct Node_for_bfs {
         id(_id),edgeIndices(_edgeIndices), nodeIndices(_nodeIndices), cost(_cost), left_channel_list(_left_channel_list), right_channel_list(_right_channel_list), using_switch_list(_using_switch_list), left_channel(_left_channel), right_channel(_right_channel) {}
 };
 
+struct Edge_for_bfs {
+    int id;
+    int from;
+    int to;
+    vector<int> edgeIndices;
+    vector<int> nodeIndices;
+    float cost = 0.0;
+    vector<int> left_channel_list;
+    vector<int> right_channel_list;
+    vector<bool> using_switch_list;
+    int left_channel;
+    int right_channel;
+    Edge_for_bfs(int _id, int _from, int _to, vector<int> _edgeIndices) :id(_id), from(_from), to(_to), edgeIndices(_edgeIndices) {};
+    Edge_for_bfs(int _id, int _from, int _to, vector<int> _edgeIndices, vector<int> _nodeIndices) : id(_id), from(_from), to(_to), edgeIndices(_edgeIndices), nodeIndices(_nodeIndices) {}
+    Edge_for_bfs(int _id, int _from, int _to, vector<int> _edgeIndices, vector<int> _nodeIndices, int _left_channel, int _right_channel, float _cost) : id(_id), from(_from), to(_to), edgeIndices(_edgeIndices), nodeIndices(_nodeIndices), left_channel(_left_channel), right_channel(_right_channel), cost(_cost) {}
+    Edge_for_bfs(int _id, int _from, int _to, vector<int> _edgeIndices, vector<int> _nodeIndices, float _cost) : id(_id), from(_from), to(_to), edgeIndices(_edgeIndices), nodeIndices(_nodeIndices), cost(_cost) {}
+    Edge_for_bfs(int _id, int _from, int _to, vector<int> _edgeIndices, vector<int> _nodeIndices, float _cost, vector<int> _left_channel_list, vector<int> _right_channel_list, vector<bool> _using_switch_list, int _left_channel, int _right_channel) :
+        id(_id), from(_from), to(_to), edgeIndices(_edgeIndices), nodeIndices(_nodeIndices), cost(_cost), left_channel_list(_left_channel_list), right_channel_list(_right_channel_list), using_switch_list(_using_switch_list), left_channel(_left_channel), right_channel(_right_channel) {}
+};
+
 struct Edge {
+    int id;
     int connecting_node[2];
     bool is_broken = false;
     float importance = 0;
@@ -113,22 +134,21 @@ int minWavelength = 40;//用于costCalc函数
 void calcEdgeImportance() {
 
     multimap<int, int> graph;
-    map<pair<int, int>, int> edgeIndexMap;
+    multimap<pair<int, int>, int> edgeIndexMap;
     for (int i = 0; i < edge_number; i++) {
         graph.insert({ init_edges[i].connecting_node[0],init_edges[i].connecting_node[1] });
         graph.insert({ init_edges[i].connecting_node[1],init_edges[i].connecting_node[0] });
-        edgeIndexMap[{init_edges[i].connecting_node[0], init_edges[i].connecting_node[1]}] = i;
-        edgeIndexMap[{init_edges[i].connecting_node[1], init_edges[i].connecting_node[0]}] = i;
+        edgeIndexMap.insert({ {init_edges[i].connecting_node[0], init_edges[i].connecting_node[1]}, i });
+        edgeIndexMap.insert({ {init_edges[i].connecting_node[1],init_edges[i].connecting_node[0]}, i });
     }
     for (int sn = 0; sn < service_number; sn++) {
         int start = init_services[sn].source;
         int goal = init_services[sn].destination;
 
-        queue<Node_for_bfs> q;
+        queue<Edge_for_bfs> q;
         unordered_set<int> visited;
         vector<vector<int>> allPaths;
-        q.push(Node_for_bfs(start, { start }));
-        visited.insert(start);
+        q.push(Edge_for_bfs(-1, start, start, {}));
         bool found = false;
 
         while (!q.empty()) {
@@ -136,21 +156,31 @@ void calcEdgeImportance() {
             vector<vector<int>> currentLevelPaths;
 
             for (int i = 0; i < levelSize; ++i) {
-                Node_for_bfs current = q.front();
+                Edge_for_bfs current = q.front();
                 q.pop();
-                if (current.id == goal) {
+
+                if (visited.find(current.id) != visited.end()) {
+                    continue;
+                }
+                visited.insert(current.id);
+
+                if (current.to == goal) {
                     found = true;
                     allPaths.push_back(current.edgeIndices);
                 }
-
+                int node_id = current.to;
                 if (!found) {
-                    auto range = graph.equal_range(current.id);
+                    auto range = graph.equal_range(node_id);
                     for (auto it = range.first; it != range.second; ++it) {
                         int neighbor = it->second;
-                        if (visited.find(neighbor) == visited.end()) {
-                            vector<int> newEdgeIndices = current.edgeIndices;
-                            newEdgeIndices.push_back(edgeIndexMap[{current.id, neighbor}]);
-                            q.push(Node_for_bfs(neighbor, newEdgeIndices));
+                        auto edge_range = edgeIndexMap.equal_range({ node_id, neighbor });
+                        for (auto it2 = edge_range.first; it2 != edge_range.second; ++it2) {
+                            int neighbor_edge = it2->second;
+                            if (visited.find(neighbor_edge) == visited.end()) {
+                                vector<int> newEdgeIndices = current.edgeIndices;
+                                newEdgeIndices.push_back(neighbor_edge);
+                                q.push(Edge_for_bfs(neighbor_edge, node_id, neighbor, newEdgeIndices));
+                            }
                         }
                     }
                 }
@@ -191,6 +221,7 @@ void Initialize_Environment()
         int node1;
         int node2;
         cin >> node1 >> node2;
+        init_edges[i].id = i + 1;
         init_edges[i].connecting_node[0] = node1;
         init_edges[i].connecting_node[1] = node2;
         init_nodes[node1 - 1].connected_edges.push_back(i);
@@ -210,6 +241,7 @@ void Initialize_Environment()
         if (minWavelength > init_services[i].right_channel - init_services[i].left_channel + 1) {
             minWavelength = init_services[i].right_channel - init_services[i].left_channel + 1;
         }
+
         S = init_services[i].traversed_number;
         init_services[i].id = i + 1;
         init_services[i].passed_edges.resize(S);
@@ -224,9 +256,20 @@ void Initialize_Environment()
             init_services[i].hold_resource_edges[j] = true;
             int edge_number = init_services[i].passed_edges[j];
             if (j == 0) {
-                init_services[i].path[j] = init_edges[edge_number - 1].connecting_node[0];
+                if (init_services[i].source == init_edges[edge_number - 1].connecting_node[0]) {
+                    init_services[i].path[j] = init_edges[edge_number - 1].connecting_node[0];
+                }
+                else {
+                    init_services[i].path[j] = init_edges[edge_number - 1].connecting_node[1];
+                }
             }
-            init_services[i].path[j + 1] = init_edges[edge_number - 1].connecting_node[1];
+            if (init_services[i].path[j] == init_edges[edge_number - 1].connecting_node[0]) {
+                init_services[i].path[j + 1] = init_edges[edge_number - 1].connecting_node[1];
+            }
+            else {
+                init_services[i].path[j + 1] = init_edges[edge_number - 1].connecting_node[0];
+            }
+            
             for (int k = init_services[i].left_channel - 1; k < init_services[i].right_channel; k++) {
                 init_edges[edge_number - 1].wave_length_occupied[k] = true;
             }
@@ -282,46 +325,6 @@ void detect_need_to_replan(vector<Service>* services, int e_failed, int* num_nee
             (*num_need_to_replan)++;
         }
     }
-}
-
-
-// 深度优先搜索（DFS）找到所有路径
-void dfs(int currentNode, int endP, const vector<vector<bool>>& adjacency_list,
-    vector<bool>& visited, vector<int>& path, vector<vector<int>>& allPaths) {
-    // 标记当前节点为已访问
-    visited[currentNode] = true;
-    path.push_back(currentNode);
-
-    // 如果当前节点是终点，保存路径
-    if (currentNode == endP) {
-        allPaths.push_back(path);
-    }
-    else {
-        // 遍历所有邻接节点
-        for (int neighbor = 0; neighbor < adjacency_list.size(); ++neighbor) {
-            if (adjacency_list[currentNode][neighbor] && !visited[neighbor]) {
-                // 如果邻接节点未被访问，继续递归
-                dfs(neighbor, endP, adjacency_list, visited, path, allPaths);
-            }
-        }
-    }
-
-    // 回溯：取消当前节点的访问状态，继续其他可能的路径
-    path.pop_back();
-    visited[currentNode] = false;
-}
-
-// 找到所有从startP到endP的路径
-vector<vector<int>> findAllPaths(int startP, int endP, const vector<vector<bool>>& adjacency_list) {
-    int N = adjacency_list.size();
-    vector<vector<int>> allPaths;  // 存储所有路径
-    vector<bool> visited(N, false);  // 标记节点是否已访问
-    vector<int> path;  // 当前路径
-
-    // 调用DFS从起点开始搜索
-    dfs(startP, endP, adjacency_list, visited, path, allPaths);
-
-    return allPaths;
 }
 
 int inspect_edge(int current_left_channel, int current_right_channel, int edge_idx, vector<Edge>* edges_current) 
@@ -565,19 +568,19 @@ void priorityQueueSearch(
 
     //刻画路网信息，用于后续路径规划
     multimap<int, int> graph;
-    map<pair<int, int>, int> edgeIndexMap;
+    multimap<pair<int, int>, int> edgeIndexMap;
     for (int i = 0; i < edge_number; i++) {
         if ((*edges)[i].is_broken) {
             continue;
         }
         graph.insert({ (*edges)[i].connecting_node[0],(*edges)[i].connecting_node[1] });
         graph.insert({ (*edges)[i].connecting_node[1],(*edges)[i].connecting_node[0] });
-        edgeIndexMap[{(*edges)[i].connecting_node[0], (*edges)[i].connecting_node[1]}] = i;
-        edgeIndexMap[{(*edges)[i].connecting_node[1], (*edges)[i].connecting_node[0]}] = i;
+        edgeIndexMap.insert({ {(*edges)[i].connecting_node[0], (*edges)[i].connecting_node[1]},i });
+        edgeIndexMap.insert({ {(*edges)[i].connecting_node[1], (*edges)[i].connecting_node[0]},i });
     }
     
     //定义的优先队列比较函数
-    auto compare = [](const Node_for_bfs& a, const Node_for_bfs& b) {
+    auto compare = [](const Edge_for_bfs& a, const Edge_for_bfs& b) {
         return a.cost > b.cost;
     };
 
@@ -597,29 +600,26 @@ void priorityQueueSearch(
             }
         }
 
-        priority_queue<Node_for_bfs, vector<Node_for_bfs>, decltype(compare)> pq(compare);
+        priority_queue<Edge_for_bfs, vector<Edge_for_bfs>, decltype(compare)> pq(compare);
         unordered_set<int> visited;
-        //vector<int> Path;
-        //vector<int>left_channel_Path;
-        //vector<int>right_channel_Path;
-        //vector<bool>switch_channel_Path;
 
         int current_left_channel = (*services)[svc_id].left_channel;
         int current_right_channel = (*services)[svc_id].right_channel;
         
-        pq.push(Node_for_bfs(start, {}, {start}, current_left_channel, current_right_channel, 0));
+        pq.push(Edge_for_bfs(-1, start, start, {}, {start}, current_left_channel, current_right_channel, 0));
         bool found = false;
         while (!pq.empty()) {
-            Node_for_bfs current = pq.top();
+            Edge_for_bfs current = pq.top();
             pq.pop();
-
             current_left_channel = current.left_channel;
             current_right_channel = current.right_channel;
-            bool need_switch = false;
 
+            if (visited.find(current.id) != visited.end()) {
+                continue;
+            }
             visited.insert(current.id);
 
-            if (current.id == goal) {
+            if (current.to == goal) {
                 found = true;
                 (*Path)[rp] = current.edgeIndices;
                 (*left_channel_Path)[rp] = current.left_channel_list;
@@ -630,12 +630,16 @@ void priorityQueueSearch(
             }
 
             if (!found) {
-                auto range = graph.equal_range(current.id);
+                auto range = graph.equal_range(current.to);
                 for (auto it = range.first; it != range.second; ++it) {
                     int neighbor = it->second;
-                    if (visited.find(neighbor) == visited.end()) {
+                    auto edge_range = edgeIndexMap.equal_range({ current.to, neighbor });
+                    for (auto it2 = edge_range.first; it2 != edge_range.second; ++it2) {
                         //先检查是否是否可以规划在当前边，以及是否需要转换信道
-                        int neighbor_edge = edgeIndexMap[{current.id, neighbor}];
+                        int neighbor_edge = it2->second;
+                        if (visited.find(neighbor_edge) != visited.end()) {
+                            continue;
+                        }
                         int inspection_result = inspect_edge(current_left_channel, current_right_channel, neighbor_edge, &edges_current);
                         if (inspection_result == -1) {
                             continue;
@@ -643,7 +647,7 @@ void priorityQueueSearch(
                         else if (inspection_result == 0) {
                             //信道不转换的方案
                             float edge_importance = edges_current[neighbor_edge].importance;
-                            int surplus_switch_times = (*nodes)[current.id - 1].switching_times;
+                            int surplus_switch_times = (*nodes)[current.to - 1].switching_times;
                             //bool edge_occuping_status[40];
                             //copy(begin(edges_current[neighbor_edge].wave_length_occupied), end(edges_current[neighbor_edge].wave_length_occupied), begin(edge_occuping_status)); = {  };
                             vector<int> newEdgeIndices = current.edgeIndices;
@@ -651,16 +655,16 @@ void priorityQueueSearch(
                             vector<int> newLeftChannelList = current.left_channel_list;
                             vector<int> newRightChannelLiet = current.right_channel_list;
                             vector<bool> newUsingSwitch = current.using_switch_list;
-                            newEdgeIndices.push_back(edgeIndexMap[{current.id, neighbor}]);
+                            newEdgeIndices.push_back(neighbor_edge);
                             newNodeIndices.push_back(neighbor);
                             newLeftChannelList.push_back(current_left_channel);
                             newRightChannelLiet.push_back(current_right_channel);
                             newUsingSwitch.push_back(false);
                             float newCost = current.cost + costCalc(
-                                edge_importance, 
-                                current_left_channel, 
+                                edge_importance,
+                                current_left_channel,
                                 current_right_channel,
-                                false, 
+                                false,
                                 surplus_switch_times,
                                 edges_current[neighbor_edge].wave_length_occupied,
                                 w_edge_importance,
@@ -668,18 +672,18 @@ void priorityQueueSearch(
                                 w_channel_switch,
                                 w_utilization,
                                 standardize_edge_importance);
-                            pq.push(Node_for_bfs(neighbor, newEdgeIndices, newNodeIndices, newCost, newLeftChannelList, newRightChannelLiet, newUsingSwitch, current_left_channel, current_right_channel));
+                            pq.push(Edge_for_bfs(neighbor_edge, current.to, neighbor, newEdgeIndices, newNodeIndices, newCost, newLeftChannelList, newRightChannelLiet, newUsingSwitch, current_left_channel, current_right_channel));
                         }
                         //信道转换的方案
-                        if ((*nodes)[current.id - 1].switching_times > 0) {
+                        if ((*nodes)[current.to - 1].switching_times > 0) {
                             float edge_importance = edges_current[neighbor_edge].importance;
-                            int surplus_switch_times = (*nodes)[current.id - 1].switching_times;
+                            int surplus_switch_times = (*nodes)[current.to - 1].switching_times;
                             vector<int> newEdgeIndices = current.edgeIndices;
                             vector<int> newNodeIndices = current.nodeIndices;
                             vector<int> newLeftChannelList = current.left_channel_list;
                             vector<int> newRightChannelLiet = current.right_channel_list;
                             vector<bool> newUsingSwitch = current.using_switch_list;
-                            newEdgeIndices.push_back(edgeIndexMap[{current.id, neighbor}]);
+                            newEdgeIndices.push_back(neighbor_edge);
                             newNodeIndices.push_back(neighbor);
                             newUsingSwitch.push_back(true);
                             // 计算最佳信道切换方案
@@ -700,7 +704,7 @@ void priorityQueueSearch(
                                 w_channel_switch,
                                 w_utilization,
                                 standardize_edge_importance);
-                            pq.push(Node_for_bfs(neighbor, newEdgeIndices, newNodeIndices, newCost, newLeftChannelList, newRightChannelLiet, newUsingSwitch, current_left_channel, current_right_channel));
+                            pq.push(Edge_for_bfs(neighbor_edge, current.to, neighbor, newEdgeIndices, newNodeIndices, newCost, newLeftChannelList, newRightChannelLiet, newUsingSwitch, changed_left_channel, changed_right_channel));
                         }
                     }
                 }
@@ -712,8 +716,18 @@ void priorityQueueSearch(
         if ((*success_replan)[rp] < 0) {
             (*success_replan)[rp] = -(*services)[svc_id].id;
         }
+
         for (int i = 0; i < (*Path)[rp].size(); i++) {
             (*Path)[rp][i]++;
+        }
+        //规划成功，占据新路径的资源
+        for (int j = 0; j < (*Path)[rp].size(); j++) {
+            int edge_idx = (*Path)[rp][j] - 1;
+            int left_channel = (*left_channel_Path)[rp][j];
+            int right_channel = (*right_channel_Path)[rp][j];
+            for (int k = left_channel - 1; k < right_channel; k++) {
+                (*edges)[edge_idx].wave_length_occupied[k] = true;
+            }
         }
     }
 }
@@ -770,14 +784,24 @@ void rePlan(vector<Service>* services, vector<Edge>* edges, vector<Node>* nodes,
         replan_edge_num[i] = left_channel_Path1[i].size();
         if (success_replan.size()>0){
             if (success_replan[i] >= 0) {
-                bool a = (*services)[success_replan[i] - 1].need_to_replan;
                 total_num_success_replan++;
                 int svc_idx = success_replan[i] - 1;
+                //释放资源
+                for (int j = 0; j < (*services)[svc_idx].passed_edges.size(); j++) {
+                    int edge_idx = (*services)[svc_idx].passed_edges[j] - 1;
+                    int left_channel = (*services)[svc_idx].left_channel_per_edge[j];
+                    int right_channel = (*services)[svc_idx].right_channel_per_edge[j];
+                    for (int k = left_channel - 1; k < right_channel; k++) {
+                        (*edges)[edge_idx].wave_length_occupied[k] = false;
+                    }
+                }
+                (*services)[svc_idx].path.resize(replan_edge_num[i] + 1);
                 (*services)[svc_idx].passed_edges.resize(replan_edge_num[i]);
                 (*services)[svc_idx].left_channel_per_edge.resize(replan_edge_num[i]);
                 (*services)[svc_idx].right_channel_per_edge.resize(replan_edge_num[i]);
                 for (int j = 0; j < replan_edge_num[i]; j++) {
                     int node_idx = node_Path1[i][j] - 1;
+                    (*services)[svc_idx].path[j] = node_Path1[i][j];
                     (*services)[svc_idx].passed_edges[j] = Path1[i][j];
                     (*services)[svc_idx].left_channel_per_edge[j] = left_channel_Path1[i][j];
                     (*services)[svc_idx].right_channel_per_edge[j] = right_channel_Path1[i][j];
