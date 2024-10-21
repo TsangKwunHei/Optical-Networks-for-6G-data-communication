@@ -27,7 +27,8 @@ def generate_input():
             # Generate m_i: number of packets in slice i (randomly chosen up to 1000)
             m_i = random.randint(1, 3)
             # Generate SliceBW_i: slice bandwidth (0.01 Gbps to 10 Gbps) - This remains a decimal
-            slice_bw_i = round(random.uniform(0.01, 10), 2)
+            #slice_bw_i = round(random.uniform(1, 10), 2)
+            slice_bw_i = random.randint(1, 10)
             # Generate UBD_i: maximum slice delay tolerance (random integer in nanoseconds)
             ubd_i = random.randint(1000, 1000000)
 

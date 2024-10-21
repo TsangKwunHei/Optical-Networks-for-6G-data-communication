@@ -61,20 +61,24 @@ Constraint 1.
         Constraint 1 met
         print
 
+        Leave time between next packet and previous packet must be greater 
+        than packet size of the previous packet divided by port bandwidth.
+
         Closest to violating constraint :  (min(({te_{k,m} - te_{i,j}} ) - (PktSize_{i,j}/PortBW) )/(PktSize_{i,j}/PortBW))
 
 Constraint 2.
         Output bandwidth constraint for the ith slice (SliceBW_i)
 
-        PacketSize_i/ te_{i,m} - ts_{i,1} => SliceBW_i * 0.95
+        Sum of PacketSize_i/ (te_{i,m} - ts_{i,1} )=> SliceBW_i * 0.95
         
         PacketSize_i    sum of all packetsize in a slice
         te_{i,m}        departure time of last packet in the ith slice
         ts_{i,1}        arrival time of first packet in the ith slice 
 
+
         if Constraint met 
         print
-        for PacketSize_i/ te_{i,m} - ts_{i,1} => SliceBW_i * 0.95
+        for PacketSize_i/ (te_{i,m} - ts_{i,1})=> SliceBW_i * 0.95
 
         Closest to violating constraint : (min((PacketSize_i/ te_{i,m} - ts_{i,1}) - (SliceBW_i * 0.95) )/(SliceBW_i * 0.95)) (as well as %)
 
@@ -82,8 +86,9 @@ Constraint 3
         Packets in the same slice must leave in the order in which they arrived, 
         and the packet leaving time must be longer than the packet arrival time.
         
-        te_{i,j+1} => te_{i,j}
-        te_{i,j} => ts_{i,j}
+        te_{i,j+1} => te_{i,j} packets in same slice leave in same order as they arrive
+        te_{i,j} => ts_{i,j} packet leave time must be greater than it's arrival time (ofc stupid)
+
 
         if Constraint 3 met 
         for  te_{i,j+1} => te_{i,j} ( Packets in the same slice must leave in the order in which they arrived )

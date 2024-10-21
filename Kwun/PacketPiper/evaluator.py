@@ -4,6 +4,7 @@ import math
 import statistics
 import time
 import os  # Import os module
+import inspect
 
 # Options to turn on/off each part
 EVALUATE_SCORE = True          # Set to True or False to turn on/off Score evaluation
@@ -11,7 +12,7 @@ EVALUATE_CONSTRAINTS = True    # Set to True or False to turn on/off Constraints
 EVALUATE_RULES = True          # Set to True or False to turn on/off Rules evaluation
 
 # Option to use input_sim.txt as input stream instead of input_gen.py
-USE_INPUT_TXT = True  # Set to True to use input_sim.txt, False to use input_gen.py
+USE_INPUT_TXT = False  # Set to True to use input_sim.txt, False to use input_gen.py
 
 def main():
     # Determine the directory where this script resides
@@ -326,7 +327,9 @@ def main():
 
             min_delay_value = min(delays)
             min_delay_packet = min(delay_info, key=lambda x: x['delay'])
-
+            print(inspect.cleandoc("""First line
+                          precedes the second line.
+                          The final line."""))
             print(f"Max Delay: {max_delay_value} ns (Slice {max_delay_packet['slice_id']}, Packet {max_delay_packet['pkt_id']})")
             print(f"Min Delay: {min_delay_value} ns (Slice {min_delay_packet['slice_id']}, Packet {min_delay_packet['pkt_id']})")
             print(f"Average Delay: {avg_delay:.2f} ns")
@@ -414,11 +417,19 @@ def main():
                 median_pct_c1 = statistics.median(percentages_exceed_c1)
                 std_pct_c1 = statistics.stdev(percentages_exceed_c1) if len(percentages_exceed_c1) > 1 else 0
                 min_pct_c1 = min(percentages_exceed_c1)
-                print("\n--- Constraint 1 Percentage Exceedance ---")
-                print(f"Average Percentage Exceedance: {avg_pct_c1:.2f}%")
-                print(f"Median Percentage Exceedance: {median_pct_c1:.2f}%")
-                print(f"Standard Deviation: {std_pct_c1:.2f}%")
-                print(f"Minimum Percentage Exceedance: {min_pct_c1:.2f}% (Closest to violating the constraint)")
+                print(inspect.cleandoc("""
+                                       Scheduling output sequence must meet the port bandwidth constraint (PortBW). 
+                                       the following requirements must be met.
+                                       {te_{k,m} - te_{i,j}} => PktSize_{i,j}/PortBW  
+
+                                        te_{i,j}        leave time of previous packet
+                                        te_{k,m}        leave time of next packet 
+                                        PktSize_{i,j}   size of the processing Packet 
+                                       """))
+                print("\n--- Constraint 1 Stats (% Exceedance) ---")
+                print(f"Average {avg_pct_c1:.2f}%")
+                print(f"Median {median_pct_c1:.2f}%")
+                print(f"Min : {min_pct_c1:.2f}% (Closest to violating the constraint)")
 
         # Constraint 2 Percentages
         if constraint2_checks:
@@ -428,10 +439,19 @@ def main():
                 median_pct_c2 = statistics.median(percentages_exceed_c2)
                 std_pct_c2 = statistics.stdev(percentages_exceed_c2) if len(percentages_exceed_c2) > 1 else 0
                 min_pct_c2 = min(percentages_exceed_c2)
+                print(inspect.cleandoc("""
+                            Output bandwidth constraint for the ith slice (SliceBW_i)
+
+                            Sum of PacketSize_i/ (te_{i,m} - ts_{i,1} )=> SliceBW_i * 0.95
+                            
+                            PacketSize_i    sum of all packetsize in a slice
+                            te_{i,m}        departure time of last packet in the ith slice
+                            ts_{i,1}        arrival time of first packet in the ith slice 
+
+                                       """))
                 print("\n--- Constraint 2 Percentage Exceedance ---")
                 print(f"Average Percentage Exceedance: {avg_pct_c2:.2f}%")
                 print(f"Median Percentage Exceedance: {median_pct_c2:.2f}%")
-                print(f"Standard Deviation: {std_pct_c2:.2f}%")
                 print(f"Minimum Percentage Exceedance: {min_pct_c2:.2f}% (Closest to violating the constraint)")
 
         # Constraint 3 Delays

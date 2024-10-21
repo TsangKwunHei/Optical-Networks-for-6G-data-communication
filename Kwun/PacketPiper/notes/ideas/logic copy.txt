@@ -1,0 +1,24 @@
+
+
+How to Lower max((te_ij - ts_ij))
+AKA
+LOWER leavetime - arrival time of each packet
+which is lower max leave time
+
+
+C1 Leave time next packet - Leave time previous packet must >>
+than packet size of the previous packet divided by port bandwidth.
+
+if 
+    leave time next packet --
+    leave time previous packet --
+
+limitation factor is leave time previous packet
+
+C2 Sum PacketSize in same slice / total duration of slice (leavetime last packet - arrival time of 1st packet)
+must be bigger than 95% of it's SliceBandwith 
+
+if leave time lower, C2 higher, so no pm
+
+3 packets in same slice leave in same order as they arrive
+

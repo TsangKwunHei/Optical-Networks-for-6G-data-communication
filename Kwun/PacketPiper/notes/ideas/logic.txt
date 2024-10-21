@@ -16,12 +16,42 @@ Good
 
 -------
 
-If know (min(({te_{k,m} - te_{i,j}} ) - (PktSize_{i,j}/PortBW) )/(PktSize_{i,j}/PortBW))
+How to Lower max((te_ij - ts_ij))
+which is only te_ij
+
+C 1 If know (min(({te_{k,m} - te_{i,j}} ) - (PktSize_{i,j}/PortBW) )/(PktSize_{i,j}/PortBW))
         
 
-If know (min((PacketSize_i/ te_{i,m} - ts_{i,1}) - (SliceBW_i * 0.95) )/(SliceBW_i * 0.95)) and max
+C 2 If know (min((PacketSize_i/ te_{i,m} - ts_{i,1}) - (SliceBW_i * 0.95) )/(SliceBW_i * 0.95)) and max
 
 max(te_ij - ts_ij)
 max((PacketSize_i/ te_{i,m} - ts_{i,1}) - (SliceBW_i * 0.95) )/(SliceBW_i * 0.95)
 
 Closest to violating constraint :  (min(({te_{k,m} - te_{i,j}} ) - (PktSize_{i,j}/PortBW) )/(PktSize_{i,j}/PortBW))
+
+
+Constraint 1. 
+        Scheduling output sequence must meet the port bandwidth constraint (PortBW). 
+        the following requirements must be met.
+            {te_{k,m} - te_{i,j}} => PktSize_{i,j}/PortBW  
+
+        te_{i,j}        leave time of previous packet
+        te_{k,m}        leave time of next packet 
+        PktSize_{i,j}   size of the processing Packet 
+
+
+Constraint 2.
+        Output bandwidth constraint for the ith slice (SliceBW_i)
+
+        PacketSize_i/ te_{i,m} - ts_{i,1} => SliceBW_i * 0.95
+        
+        PacketSize_i    sum of all packetsize in a slice
+        te_{i,m}        departure time of last packet in the ith slice
+        ts_{i,1}        arrival time of first packet in the ith slice 
+
+Constraint 3 
+        Packets in the same slice must leave in the order in which they arrived, 
+        and the packet leaving time must be longer than the packet arrival time.
+        
+        te_{i,j+1} => te_{i,j}
+        te_{i,j} => ts_{i,j}

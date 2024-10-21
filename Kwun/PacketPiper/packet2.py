@@ -7,13 +7,12 @@ import time  # For checking runtime
 
 def main():
     """
-    Main function to execute the soft slice scheduling algorithm.
-
+    Main function to execute the refined packet scheduling algorithm.
+    
     This function reads input data, processes packet scheduling across multiple slices,
     and outputs the scheduling sequence along with relevant metrics.
-
-    The scheduling aims to maximize the number of slices meeting their bandwidth and delay constraints
-    while minimizing the maximum packet delay.
+    
+    The scheduling aims to minimize the maximum packet delay across all slices.
     """
     # Start time for runtime constraint checking (Constraint 2)
     start_time = time.time()
@@ -36,7 +35,7 @@ def main():
     for slice_id in range(num_slices):
         num_slice_packets = int(data[index])  # Number of packets in the current slice
         index += 1
-        slice_bw = float(data[index])         # Slice Bandwidth (Gbps)
+        slice_bw = float(data[index])         # Slice Bandwidth (Gbps) [Ignored in this strategy]
         index += 1
         slice_delay_tolerance = int(data[index])  # Maximum delay tolerance (UBD)
         index += 1
@@ -67,7 +66,7 @@ def main():
         # Create a dictionary to hold slice-specific information
         slice_info = {
             'ubd': slice_delay_tolerance,       # Maximum delay tolerance
-            'slice_bw': slice_bw,               # Slice Bandwidth
+            'slice_bw': slice_bw,               # Slice Bandwidth [Ignored]
             'slice_id': slice_id,               # Slice ID
             'packets': sorted_packets,          # Sorted packets in the slice
             'total_bits_sent': 0,               # Total bits sent for the slice
@@ -90,25 +89,30 @@ def main():
     packet_index = 0
     heap = []  # Min-heap to manage packet priorities
 
-    def get_priority(packet):
+    def get_priority(packet, current_time):
         """
-        Calculate the priority of a packet based on its deadline, slice bandwidth, and slice ID.
-
+        Calculate the priority of a packet based on its slack time.
+        
         Priority is determined by:
-        1. Earliest deadline (higher priority)
-        2. Higher slice bandwidth (negated for max-heap behavior)
-        3. Lower slice ID (earlier slices have higher priority)
-
+        1. Least slack time (higher priority)
+        2. Shortest transmission time (higher priority)
+        3. Earlier arrival time (higher priority)
+        4. Lower slice ID (higher priority)
+        
         Args:
             packet (dict): The packet dictionary containing its attributes.
-
+            current_time (int): The current scheduling time.
+        
         Returns:
             tuple: A tuple representing the packet's priority.
         """
+        transmission_time = math.ceil(packet['pkt_size'] / port_bw)
+        slack_time = packet['deadline'] - (current_time + transmission_time)
         return (
-            packet['deadline'],
-            -slices[packet['slice_id']]['slice_bw'],
-            slices[packet['slice_id']]['slice_id']
+            slack_time,                          # Primary: Least slack time
+            transmission_time,                   # Secondary: Shortest transmission time
+            packet['ts'],                        # Tertiary: Earlier arrival time
+            packet['slice_id']                   # Quaternary: Lower slice ID
         )
 
     # Main scheduling loop
@@ -117,7 +121,8 @@ def main():
         while (packet_index < total_packets and
                all_packets[packet_index]['ts'] <= current_time):
             packet = all_packets[packet_index]
-            heapq.heappush(heap, (get_priority(packet), packet))
+            priority = get_priority(packet, current_time)
+            heapq.heappush(heap, (priority, packet))
             packet_index += 1
 
         if not heap:
@@ -129,14 +134,16 @@ def main():
                 break
             continue
 
-        # Pop the packet with the highest priority from the heap
+        # Pop the packet with the highest priority (least slack time) from the heap
         _, packet = heapq.heappop(heap)
         slice_id = packet['slice_id']
         slice_info = slices[slice_id]
 
         # Ensure packets are scheduled in the order they arrived within the same slice
         if slice_info['packets'] and slice_info['packets'][0]['pkt_id'] != packet['pkt_id']:
-            heapq.heappush(heap, (get_priority(packet), packet))
+            # Reinsert the packet into the heap and fetch the next available packet
+            priority = get_priority(packet, current_time)
+            heapq.heappush(heap, (priority, packet))
             if slice_info['packets']:
                 next_packet = slice_info['packets'][0]
                 current_time = max(current_time, next_packet['ts'], port_available_time)
@@ -144,9 +151,9 @@ def main():
 
         # Remove the next packet from the slice's queue
         if slice_info['packets']:
-            next_packet = slice_info['packets'].popleft()
+            scheduled_packet = slice_info['packets'].popleft()
         else:
-            next_packet = None
+            scheduled_packet = None
 
         # Determine the earliest possible departure time for the packet
         te_candidate = max(
@@ -181,12 +188,15 @@ def main():
         # Advance the current_time to the packet's departure time
         current_time = te
 
+        # Early termination if runtime exceeds 2 minutes
+        if time.time() - start_time > 120:
+            raise Exception("Constraint violated: Runtime exceeds 2 minutes.")
+
     # Constraint Checks
 
     # Constraint 1: Port bandwidth constraint (PortBW)
     # Ensure that the time between the departure times of consecutive packets
     # is enough to transmit the previous packet at PortBW.
-    # For each pair of consecutive scheduled packets:
     for i in range(len(scheduled_packets) - 1):
         te_prev, _, _, pkt_size_prev, _ = scheduled_packets[i]
         te_next, _, _, _, _ = scheduled_packets[i + 1]
@@ -195,7 +205,7 @@ def main():
         # The earliest the next packet can be scheduled
         min_te_next = te_prev + transmission_time_prev
         if te_next < min_te_next:
-            raise Exception("Constraint 1 violated: Port bandwidth constraint not met between packet indices {} and {}.".format(i, i+1))
+            raise Exception(f"Constraint 1 violated: Port bandwidth constraint not met between packet indices {i} and {i+1}.")
 
     # Constraint 3: Packet scheduling sequence constraint
     # Packets in the same slice must leave in the order they arrived
@@ -204,22 +214,22 @@ def main():
         scheduled_packets_slice = slice_info['scheduled_packets']
         for j in range(len(scheduled_packets_slice)):
             te_current, pkt_id_current, _, ts_current = scheduled_packets_slice[j]
-            # Check that te_{i,j} >= ts_{i,j}
+            # Check that te_current >= ts_current
             if te_current < ts_current:
-                raise Exception("Constraint 3 violated: Packet departure time is before arrival time for slice {}, packet {}.".format(slice_info['slice_id'], pkt_id_current))
+                raise Exception(f"Constraint 3 violated: Packet departure time is before arrival time for slice {slice_info['slice_id']}, packet {pkt_id_current}.")
             if j > 0:
                 te_prev, pkt_id_prev, _, _ = scheduled_packets_slice[j - 1]
-                # Check that te_{i,j} >= te_{i,j-1}
+                # Check that te_current >= te_prev
                 if te_current < te_prev:
-                    raise Exception("Constraint 3 violated: Packet departure times are not non-decreasing within slice {} between packets {} and {}.".format(slice_info['slice_id'], pkt_id_prev, pkt_id_current))
+                    raise Exception(f"Constraint 3 violated: Packet departure times are not non-decreasing within slice {slice_info['slice_id']} between packets {pkt_id_prev} and {pkt_id_current}.")
 
-    # Constraint 4: Ensure all timestamps (te_{i,j} and ts_{i,j}) are integers
+    # Constraint 4: Ensure all timestamps (te and ts) are integers
     # This check ensures that all departure times (te) and arrival times (ts) are integers.
     if not all(isinstance(te, int) for te, _, _, _, _ in scheduled_packets):
-        raise Exception("Constraint 4 violated: All packet departure times (te_{i,j}) must be integers.")
+        raise Exception("Constraint 4 violated: All packet departure times (te) must be integers.")
 
     if not all(isinstance(packet['ts'], int) for packet in all_packets):
-        raise Exception("Constraint 4 violated: All packet arrival times (ts_{i,j}) must be integers.")
+        raise Exception("Constraint 4 violated: All packet arrival times (ts) must be integers.")
 
     # Constraint: The Output Slice ID and Packet ID must start from 0
     # This check ensures that the minimum Slice ID and Packet ID in the output are 0.
@@ -233,34 +243,17 @@ def main():
     if len(scheduled_packets) != total_packets:
         raise Exception("Constraint violated: Number of scheduled packets does not equal number of input packets.")
 
-    # Constraint 2: Output bandwidth constraint for the ith slice (SliceBW_i)
-    # Ensure that the actual slice bandwidth meets at least 95% of the SliceBW_i
-    # \frac{\sum_j PktSize_{i,j}}{te_{i,m} - ts_{i,1}} \geq 95\% \times SliceBW_i
-    for slice_info in slices:
-        total_bits_sent = slice_info['total_bits_sent']
-        total_time = slice_info['last_te'] - slice_info['first_ts']
-        if total_time > 0:
-            actual_bw = total_bits_sent / total_time
-            if actual_bw < 0.95 * slice_info['slice_bw']:
-                raise Exception(f"Constraint 2 violated for slice {slice_info['slice_id']}: Output bandwidth is less than 95% of SliceBW_i.")
-        else:
-            raise Exception(f"Constraint 2 violated for slice {slice_info['slice_id']}: Total time is zero, cannot compute bandwidth.")
-
-    # Calculate the score based on the scheduling performance
-    fi_sum = 0
+    # Calculate the maximum delay across all slices
     max_delay = 0
     for slice_info in slices:
-        # Determine if the slice meets its delay tolerance
-        fi = 1 if slice_info['max_delay'] <= slice_info['ubd'] else 0
-        fi_sum += fi / num_slices
         if slice_info['max_delay'] > max_delay:
             max_delay = slice_info['max_delay']
 
-    # Avoid division by zero by handling cases where max_delay is 0
-    if max_delay > 0:
-        score = fi_sum + (10000 / max_delay)
-    else:
-        score = fi_sum + 10000
+    # Calculate the score based on the scheduling performance
+    # Since we're ignoring FI, the score is solely based on max_delay
+    # Assuming lower max_delay results in a higher score
+    # The exact scoring mechanism should be defined; here's a placeholder
+    score = 10000 / max_delay if max_delay > 0 else 10000
 
     # End time for runtime constraint checking
     end_time = time.time()
@@ -279,7 +272,6 @@ def main():
     else:
         raise Exception("Constraint violated: Number of scheduled packets does not match input packets.")
 
- 
     # Prepare the output scheduling sequence
     output = []
     for te, slice_id, pkt_id, _, _ in scheduled_packets:
