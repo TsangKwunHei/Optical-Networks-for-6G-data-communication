@@ -1,0 +1,14 @@
+// Function to compute Jaccard similarity between two sets
+double JaccardSimilarity(const std::set<int> &a, const std::set<int> &b) {
+  if (a.empty() && b.empty())
+    return 0.0;
+  int intersection_size = 0;
+  for (const auto &elem : a) {
+    if (b.find(elem) != b.end()) {
+      ++intersection_size;
+    }
+  }
+  int union_size = static_cast<int>(a.size()) + static_cast<int>(b.size()) -
+                   intersection_size;
+  return static_cast<double>(intersection_size) / union_size;
+}

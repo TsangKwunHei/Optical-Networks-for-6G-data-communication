@@ -6,8 +6,8 @@
       "type": "lldb",
       "request": "launch",
       "args": [],
-      "cwd": "/Users/kwunhei/Documents/optimise_network",
-      "program": "/Users/kwunhei/Documents/optimise_network/build/Debug/outDebug"
+      "cwd": "/Users/kwunhei/Documents/optimise_network/ginger",
+      "program": "/Users/kwunhei/Documents/optimise_network/ginger/build/Debug/outDebug"
     }
   ]
 }
