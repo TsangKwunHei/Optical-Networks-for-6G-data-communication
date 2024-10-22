@@ -5,6 +5,7 @@ import heapq
 from collections import deque
 import os
 from pathlib import Path
+import json  # Import JSON for event logging
 
 # Set DEBUG to True to enable debug statements, False to disable
 DEBUG = True
@@ -57,7 +58,8 @@ def main():
 
     slices = []
     all_packets = []
-    
+    event_log = []  # Initialize event log
+
     for slice_id in range(n):
         if idx + 2 >= len(data):
             debug_print(f"Error: Insufficient data for slice {slice_id}.")
@@ -102,7 +104,8 @@ def main():
             'total_bits_sent': 0,
             'first_ts': packets[0]['ts'] if packets else 0,
             'last_te': 0,
-            'max_delay': 0
+            'max_delay': 0,
+            'scheduled_te_list': []  # To track departure times for Constraint 3
         }
         slices.append(slice_info)
         debug_print(f"Initialized slice {slice_id} with {len(packets)} packets.")
@@ -120,6 +123,9 @@ def main():
     port_available_time = 0
     packet_idx = 0
     heap = []
+
+    # To track the departure time of the previous packet for Constraint 1
+    previous_te = None
 
     # Priority function: (earliest deadline, highest SliceBW, earliest slice_id)
     def get_priority(pkt):
@@ -181,9 +187,57 @@ def main():
         transmission_time = math.ceil(pkt['pkt_size'] / PortBW)
         debug_print(f"Transmission time for Packet {pkt['pkt_id']} from Slice {slice_id}: {transmission_time} ns.")
 
+        # Constraint 1: Port Bandwidth Constraint
+        if previous_te is not None:
+            required_interval = pkt['pkt_size'] / PortBW
+            actual_interval = te - previous_te
+            debug_print(f"Constraint 1 - PortBW:")
+            debug_print(f"  Previous te: {previous_te} ns")
+            debug_print(f"  Current te: {te} ns")
+            debug_print(f"  Required interval: {required_interval} ns")
+            debug_print(f"  Actual interval: {actual_interval} ns")
+            if actual_interval < required_interval:
+                debug_print(f"  Constraint 1 Violated: {actual_interval} < {required_interval}")
+            else:
+                debug_print(f"  Constraint 1 Satisfied: {actual_interval} >= {required_interval}")
+        else:
+            debug_print("Constraint 1: First packet being scheduled. No previous te to compare.")
+
+        # Update previous_te for the next packet
+        previous_te = te
+
         # Update port availability
         port_available_time = te + transmission_time
         debug_print(f"Port available at {port_available_time} ns after transmitting Packet {pkt['pkt_id']}.")
+
+        # Constraint 3: Order and Departure Time within Slice
+        # Ensure te >= ts
+        debug_print(f"Constraint 3 - Packet Departure Time:")
+        debug_print(f"  te (departure time): {te} ns")
+        debug_print(f"  ts (arrival time): {pkt['ts']} ns")
+        if te < pkt['ts']:
+            debug_print(f"  Constraint 3 Violated: te ({te}) < ts ({pkt['ts']})")
+        else:
+            debug_print(f"  Constraint 3 Satisfied: te ({te}) >= ts ({pkt['ts']})")
+
+        # Ensure order within the slice
+        if s['scheduled_te_list']:
+            last_te_in_slice = s['scheduled_te_list'][-1]
+            debug_print(f"  Last te in Slice {slice_id}: {last_te_in_slice} ns")
+            if te < last_te_in_slice:
+                debug_print(f"  Constraint 3 Violated: te ({te}) < last_te_in_slice ({last_te_in_slice})")
+            else:
+                debug_print(f"  Constraint 3 Satisfied: te ({te}) >= last_te_in_slice ({last_te_in_slice})")
+        else:
+            debug_print(f"  No previous te in Slice {slice_id} to compare for order.")
+
+        # Record the departure time in the slice's schedule
+        s['scheduled_te_list'].append(te)
+
+        # Calculate transmission time
+        # (Assuming PortBW is in Gbps and pkt_size is in bits, transmission_time should be in ns
+        # So, transmission_time = pkt_size / (PortBW * 1e9) * 1e9 = pkt_size / PortBW
+        # Which is already calculated above.
 
         # Update slice's last_te
         s['last_te'] = te
@@ -198,12 +252,55 @@ def main():
             s['max_delay'] = delay
 
         # Record the scheduled packet
-        scheduled_packets.append((te, slice_id, pkt['pkt_id']))
+        scheduled_packets.append({
+            'te': te,
+            'slice_id': slice_id,
+            'pkt_id': pkt['pkt_id'],
+            'ts': pkt['ts'],
+            'departure_time': te,
+            'delay': delay
+        })
         debug_print(f"Scheduled Packet {pkt['pkt_id']} from Slice {slice_id} at te={te} ns.")
+
+        # Log the event
+        event = {
+            'time': te,
+            'action': 'departure',
+            'packet_id': pkt['pkt_id'],
+            'slice_id': slice_id,
+            'ts': pkt['ts'],
+            'departure_time': te,
+            'delay': delay
+        }
+        event_log.append(event)
 
         # Advance current time
         current_time = te
         debug_print(f"Advancing current_time to {current_time} ns.")
+
+    # After scheduling all packets, check Constraint 2 for each slice
+    debug_print("\nConstraint 2 - Output Bandwidth Constraint for Each Slice:")
+    for s in slices:
+        if s['first_ts'] == 0 and not s['scheduled_te_list']:
+            # No packets were scheduled for this slice
+            debug_print(f"Slice {s['slice_id']} has no scheduled packets.")
+            continue
+        interval = s['last_te'] - s['first_ts']
+        if interval == 0:
+            computed_SliceBW = float('inf')  # Avoid division by zero
+            debug_print(f"Slice {s['slice_id']} interval is 0 ns. Setting computed_SliceBW to infinity.")
+        else:
+            computed_SliceBW = s['total_bits_sent'] / interval  # bits/ns = Gbps (since 1 bit/ns = 1 Gbps)
+        required_SliceBW = s['SliceBW_i'] * 0.95
+        debug_print(f"Slice {s['slice_id']}:")
+        debug_print(f"  Total Packet Size: {s['total_bits_sent']} bits")
+        debug_print(f"  Interval: {interval} ns")
+        debug_print(f"  Computed SliceBW: {computed_SliceBW} Gbps")
+        debug_print(f"  Required SliceBW (95% of SliceBW_i): {required_SliceBW} Gbps")
+        if computed_SliceBW >= required_SliceBW:
+            debug_print(f"  Constraint 2 Satisfied for Slice {s['slice_id']}: {computed_SliceBW} >= {required_SliceBW}")
+        else:
+            debug_print(f"  Constraint 2 Violated for Slice {s['slice_id']}: {computed_SliceBW} < {required_SliceBW}")
 
     # Calculate the score based on the problem's scoring formula
     fi_sum = 0
@@ -213,7 +310,6 @@ def main():
         fi_sum += fi / n
         if s['max_delay'] > max_delay:
             max_delay = s['max_delay']
-            max_delay_te = s 
     if max_delay > 0:
         score = fi_sum + (10000 / max_delay)
     else:
@@ -221,7 +317,7 @@ def main():
         score = fi_sum + 10000
         debug_print(f"Warning: max_delay is 0. Setting second term of score to 10000 to avoid division by zero.")
 
-    debug_print(f"Score Calculation:")
+    debug_print(f"\nScore Calculation:")
     debug_print(f"  Sum(fi / n): {fi_sum}")
     debug_print(f"  Max Delay: {max_delay} ns")
     debug_print(f"  Score: {score}")
@@ -230,12 +326,17 @@ def main():
     K = len(scheduled_packets)
     print(K)
     output = []
-    for te, slice_id, pkt_id in scheduled_packets:
-        output.append(f"{te} {slice_id} {pkt_id}")
+    for pkt in scheduled_packets:
+        output.append(f"{pkt['departure_time']} {pkt['slice_id']} {pkt['pkt_id']}")
     print(' '.join(output))
     debug_print(f"Total scheduled packets: {K}")
     debug_print(f"Scheduling sequence: {' '.join(output)}")
     debug_print("Script completed successfully.")
+
+    # Save the event log to a JSON file for visualization
+    with open(script_dir / 'event_log.json', 'w') as f:
+        json.dump(event_log, f, indent=4)
+    debug_print("Event log saved to 'event_log.json'.")
 
 if __name__ == "__main__":
     try:

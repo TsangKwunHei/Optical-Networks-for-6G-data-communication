@@ -1,8 +1,6 @@
 import random
 import os
 
-slice_users = random.randint(100, 1000) #  (1 ≤ n ≤ 10000)
-port_bw = random.randint(800, 800)  # From 1 Gbps to 800 Gbps.
 
 def generate_input():
     """Generates input data and writes it to a text file in the current script directory."""
@@ -15,8 +13,8 @@ def generate_input():
     # Open the output file in the current directory of the script
     with open(file_path, 'w') as f_out:
         # Generate the number of slice users n (1 ≤ n ≤ 10000) and PortBW (1 Gbps to 800 Gbps)
-        n = slice_users
-        port_bw_gps = port_bw # From 1 Gbps to 800 Gbps.
+        n = random.randint(1, 10000) #  (1 ≤ n ≤ 10000)
+        port_bw_gps = random.randint(1, 800)  # From 1 Gbps to 800 Gbps.
 
         # Write Line 1: Number of slice users and PortBW
         line1 = f"{n} {port_bw_gps}"
@@ -25,12 +23,12 @@ def generate_input():
 
         for i in range(1, n + 1):
             # Generate m_i: number of packets in slice i (randomly chosen up to 1000)
-            m_i = random.randint(10, 100)
+            m_i = random.randint(1, 10000)
             # Generate SliceBW_i: slice bandwidth (0.01 Gbps to 10 Gbps) - This remains a decimal
-            slice_bw_i = round(random.uniform(1, 10), 2)
+            slice_bw_i = round(random.uniform(0.01, 10), 2)
             #slice_bw_i = random.randint(1, 10)
             # Generate UBD_i: maximum slice delay tolerance (random integer in nanoseconds)
-            ubd_i = random.randint(30000, 30000)
+            ubd_i = random.randint(20000, 40000)
 
             # Write Line 2i: m_i, SliceBW_i, UBD_i
             line2i = f"{m_i} {slice_bw_i} {ubd_i}"
@@ -43,11 +41,11 @@ def generate_input():
             ts_prev = 0
             for j in range(m_i):
                 # Generate ts_{i,j}: arrival time of packet j (non-decreasing, integer)
-                ts_j = ts_prev + random.randint(0, 10000)  # Increment up to 10000 ns
+                ts_j = ts_prev + random.randint(0, 20000)  # Increment up to 10000 ns
                 ts_list.append(ts_j)
                 ts_prev = ts_j
                 # Generate PktSize_{i,j}: packet size (512 bits to 76800 bits, integer)
-                pkt_size = random.randint(8000, 16000)
+                pkt_size = random.randint(8000, 30000)
                 pkt_size_list.append(pkt_size)
 
             # Prepare Line 2i+1: sequence information (ts and PktSize pairs)

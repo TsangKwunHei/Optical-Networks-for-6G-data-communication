@@ -1,0 +1,587 @@
+[
+    {
+        "time": 0,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 2,
+        "ts": 0,
+        "departure_time": 0,
+        "delay": 0
+    },
+    {
+        "time": 53,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 3,
+        "ts": 0,
+        "departure_time": 53,
+        "delay": 53
+    },
+    {
+        "time": 111,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 11,
+        "ts": 0,
+        "departure_time": 111,
+        "delay": 111
+    },
+    {
+        "time": 164,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 12,
+        "ts": 0,
+        "departure_time": 164,
+        "delay": 164
+    },
+    {
+        "time": 207,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 1,
+        "ts": 0,
+        "departure_time": 207,
+        "delay": 207
+    },
+    {
+        "time": 255,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 4,
+        "ts": 0,
+        "departure_time": 255,
+        "delay": 255
+    },
+    {
+        "time": 319,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 6,
+        "ts": 0,
+        "departure_time": 319,
+        "delay": 319
+    },
+    {
+        "time": 325,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 10,
+        "ts": 0,
+        "departure_time": 325,
+        "delay": 325
+    },
+    {
+        "time": 378,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 0,
+        "ts": 0,
+        "departure_time": 378,
+        "delay": 378
+    },
+    {
+        "time": 421,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 5,
+        "ts": 0,
+        "departure_time": 421,
+        "delay": 421
+    },
+    {
+        "time": 490,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 9,
+        "ts": 0,
+        "departure_time": 490,
+        "delay": 490
+    },
+    {
+        "time": 543,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 13,
+        "ts": 0,
+        "departure_time": 543,
+        "delay": 543
+    },
+    {
+        "time": 591,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 12,
+        "ts": 500,
+        "departure_time": 591,
+        "delay": 91
+    },
+    {
+        "time": 676,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 14,
+        "ts": 0,
+        "departure_time": 676,
+        "delay": 676
+    },
+    {
+        "time": 729,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 15,
+        "ts": 0,
+        "departure_time": 729,
+        "delay": 729
+    },
+    {
+        "time": 787,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 16,
+        "ts": 0,
+        "departure_time": 787,
+        "delay": 787
+    },
+    {
+        "time": 851,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 17,
+        "ts": 0,
+        "departure_time": 851,
+        "delay": 851
+    },
+    {
+        "time": 920,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 18,
+        "ts": 0,
+        "departure_time": 920,
+        "delay": 920
+    },
+    {
+        "time": 926,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 19,
+        "ts": 0,
+        "departure_time": 926,
+        "delay": 926
+    },
+    {
+        "time": 953,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 8,
+        "ts": 0,
+        "departure_time": 953,
+        "delay": 953
+    },
+    {
+        "time": 996,
+        "action": "departure",
+        "packet_id": 0,
+        "slice_id": 7,
+        "ts": 0,
+        "departure_time": 996,
+        "delay": 996
+    },
+    {
+        "time": 1023,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 2,
+        "ts": 1000,
+        "departure_time": 1023,
+        "delay": 23
+    },
+    {
+        "time": 1118,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 3,
+        "ts": 1000,
+        "departure_time": 1118,
+        "delay": 118
+    },
+    {
+        "time": 1203,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 11,
+        "ts": 1000,
+        "departure_time": 1203,
+        "delay": 203
+    },
+    {
+        "time": 1288,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 12,
+        "ts": 1000,
+        "departure_time": 1288,
+        "delay": 288
+    },
+    {
+        "time": 1331,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 1,
+        "ts": 1000,
+        "departure_time": 1331,
+        "delay": 331
+    },
+    {
+        "time": 1416,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 4,
+        "ts": 1000,
+        "departure_time": 1416,
+        "delay": 416
+    },
+    {
+        "time": 1516,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 6,
+        "ts": 1000,
+        "departure_time": 1516,
+        "delay": 516
+    },
+    {
+        "time": 1622,
+        "action": "departure",
+        "packet_id": 3,
+        "slice_id": 12,
+        "ts": 1500,
+        "departure_time": 1622,
+        "delay": 122
+    },
+    {
+        "time": 1728,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 10,
+        "ts": 1000,
+        "departure_time": 1728,
+        "delay": 728
+    },
+    {
+        "time": 1813,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 0,
+        "ts": 1000,
+        "departure_time": 1813,
+        "delay": 813
+    },
+    {
+        "time": 1898,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 5,
+        "ts": 1000,
+        "departure_time": 1898,
+        "delay": 898
+    },
+    {
+        "time": 1983,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 9,
+        "ts": 1000,
+        "departure_time": 1983,
+        "delay": 983
+    },
+    {
+        "time": 2068,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 13,
+        "ts": 1000,
+        "departure_time": 2068,
+        "delay": 1068
+    },
+    {
+        "time": 2153,
+        "action": "departure",
+        "packet_id": 4,
+        "slice_id": 12,
+        "ts": 2000,
+        "departure_time": 2153,
+        "delay": 153
+    },
+    {
+        "time": 2206,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 14,
+        "ts": 1000,
+        "departure_time": 2206,
+        "delay": 1206
+    },
+    {
+        "time": 2301,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 15,
+        "ts": 1000,
+        "departure_time": 2301,
+        "delay": 1301
+    },
+    {
+        "time": 2386,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 16,
+        "ts": 1000,
+        "departure_time": 2386,
+        "delay": 1386
+    },
+    {
+        "time": 2486,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 17,
+        "ts": 1000,
+        "departure_time": 2486,
+        "delay": 1486
+    },
+    {
+        "time": 2571,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 18,
+        "ts": 1000,
+        "departure_time": 2571,
+        "delay": 1571
+    },
+    {
+        "time": 2677,
+        "action": "departure",
+        "packet_id": 5,
+        "slice_id": 12,
+        "ts": 2500,
+        "departure_time": 2677,
+        "delay": 177
+    },
+    {
+        "time": 2756,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 19,
+        "ts": 1000,
+        "departure_time": 2756,
+        "delay": 1756
+    },
+    {
+        "time": 2862,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 8,
+        "ts": 1000,
+        "departure_time": 2862,
+        "delay": 1862
+    },
+    {
+        "time": 2968,
+        "action": "departure",
+        "packet_id": 1,
+        "slice_id": 7,
+        "ts": 1000,
+        "departure_time": 2968,
+        "delay": 1968
+    },
+    {
+        "time": 3074,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 2,
+        "ts": 3000,
+        "departure_time": 3074,
+        "delay": 74
+    },
+    {
+        "time": 3117,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 3,
+        "ts": 3000,
+        "departure_time": 3117,
+        "delay": 117
+    },
+    {
+        "time": 3160,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 11,
+        "ts": 3000,
+        "departure_time": 3160,
+        "delay": 160
+    },
+    {
+        "time": 3255,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 1,
+        "ts": 3000,
+        "departure_time": 3255,
+        "delay": 255
+    },
+    {
+        "time": 3298,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 4,
+        "ts": 3000,
+        "departure_time": 3298,
+        "delay": 298
+    },
+    {
+        "time": 3341,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 6,
+        "ts": 3000,
+        "departure_time": 3341,
+        "delay": 341
+    },
+    {
+        "time": 3499,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 10,
+        "ts": 3000,
+        "departure_time": 3499,
+        "delay": 499
+    },
+    {
+        "time": 3594,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 0,
+        "ts": 3000,
+        "departure_time": 3594,
+        "delay": 594
+    },
+    {
+        "time": 3637,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 5,
+        "ts": 3000,
+        "departure_time": 3637,
+        "delay": 637
+    },
+    {
+        "time": 3680,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 9,
+        "ts": 3000,
+        "departure_time": 3680,
+        "delay": 680
+    },
+    {
+        "time": 3775,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 13,
+        "ts": 3000,
+        "departure_time": 3775,
+        "delay": 775
+    },
+    {
+        "time": 3818,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 14,
+        "ts": 3000,
+        "departure_time": 3818,
+        "delay": 818
+    },
+    {
+        "time": 3861,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 15,
+        "ts": 3000,
+        "departure_time": 3861,
+        "delay": 861
+    },
+    {
+        "time": 3904,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 16,
+        "ts": 3000,
+        "departure_time": 3904,
+        "delay": 904
+    },
+    {
+        "time": 3947,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 17,
+        "ts": 3000,
+        "departure_time": 3947,
+        "delay": 947
+    },
+    {
+        "time": 3990,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 18,
+        "ts": 3000,
+        "departure_time": 3990,
+        "delay": 990
+    },
+    {
+        "time": 4148,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 19,
+        "ts": 3000,
+        "departure_time": 4148,
+        "delay": 1148
+    },
+    {
+        "time": 4306,
+        "action": "departure",
+        "packet_id": 2,
+        "slice_id": 7,
+        "ts": 3000,
+        "departure_time": 4306,
+        "delay": 1306
+    },
+    {
+        "time": 5000,
+        "action": "departure",
+        "packet_id": 3,
+        "slice_id": 11,
+        "ts": 5000,
+        "departure_time": 5000,
+        "delay": 0
+    },
+    {
+        "time": 5106,
+        "action": "departure",
+        "packet_id": 3,
+        "slice_id": 10,
+        "ts": 5000,
+        "departure_time": 5106,
+        "delay": 106
+    },
+    {
+        "time": 5212,
+        "action": "departure",
+        "packet_id": 3,
+        "slice_id": 9,
+        "ts": 5000,
+        "departure_time": 5212,
+        "delay": 212
+    }
+]
