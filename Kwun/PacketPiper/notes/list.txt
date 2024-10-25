@@ -1,0 +1,7 @@
+ts	update_port_to (after transmit packet)	 i_j	ts	te_candiate(te)	leave(next - pervious)	te_last_pkt - ts_first_pkt 	
+1	4000	0_0	0	0	--	-	
+2	8000	1_0	0	4000	4000	-	
+3	16000	0_1	1000	8000	7000	-	
+4	24000	1_1	1000	16000	17000	-	
+5	28000	0_2	3000	24000	21000	21000	
+6	32000	1_2	3000	28000	25000	25000	

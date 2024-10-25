@@ -69,8 +69,9 @@ Constraint 1.
 Constraint 2.
         Output bandwidth constraint for the ith slice (SliceBW_i)
 
-        Sum of PacketSize_i/ (te_{i,m} - ts_{i,1} )=> SliceBW_i * 0.95
-        
+        Sum of PacketSize_i/ (te_{i,m} - ts_{i,1} ) => SliceBW_i * 0.95
+        PacketSize / slice duration 
+
         PacketSize_i    sum of all packetsize in a slice
         te_{i,m}        departure time of last packet in the ith slice
         ts_{i,1}        arrival time of first packet in the ith slice 
