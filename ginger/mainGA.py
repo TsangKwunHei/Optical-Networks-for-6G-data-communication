@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import sys
 
 
 
@@ -24,6 +25,7 @@ class packetSchedulingTask:
         '''
 
         self.__genetic_Main()
+        return self.best_solution, self.best_Obj
 
     def __genetic_Main(self):
         '''
@@ -41,9 +43,6 @@ class packetSchedulingTask:
         num_packets_total=0;
         for slice in slices:
             num_packets_total += slice["num_packets"]
-
-
-
 
         '''
         遗传算法参数
@@ -65,7 +64,7 @@ class packetSchedulingTask:
         for i in range(population_size):
             population[i] = self.__Genetic_initialize(slices, num_packets_total)
             #合法化
-            population[i] = self.__Genetic_leagalize(population[i], slices)
+            #population[i] = self.__Genetic_leagalize(population[i], slices)
 
         #STEP_2.计算初始种群解的适应度
         for i in range(population_size):
@@ -85,8 +84,8 @@ class packetSchedulingTask:
                     new_population[i]=self.__Genetic_mutate(new_population[i])
 
             #STEP_5.新种群合法化操作
-            for i in range(population_size):
-                new_population[i] = self.__Genetic_leagalize(new_population[i], slices)
+            #for i in range(population_size):
+                #new_population[i] = self.__Genetic_leagalize(new_population[i], slices)
 
             '''
             #STEP_6.
@@ -131,15 +130,15 @@ class packetSchedulingTask:
                 #添加随机个体
                 for i in range(num_individual_remained, population_size):
                     population1[i] = self.__Genetic_initialize(slices, num_packets_total)
-                    population1[i] = self.__Genetic_leagalize(population1[i], slices)
-                    Obj1_list[i], a, b, c= self.__Genetic_adaptationCalc(population1[i], slices)
+                    #population1[i] = self.__Genetic_leagalize(population1[i], slices)
+                    Obj1_list[i]= self.__Genetic_adaptationCalc(population1[i], slices)
                 #新生代种群的更新
                 population = population1
                 Obj_list = Obj1_list
 
         #输出结果
         best_popu = population[0]
-        [Obj] = self.__Genetic_adaptationCalc(best_popu, slices)
+        Obj = self.__Genetic_adaptationCalc(best_popu, slices)
         self.best_solution = best_popu
         self.best_Obj = Obj
 
@@ -199,25 +198,26 @@ class packetSchedulingTask:
                     te_limit = packet_te_limit[idx]
                     time_consumption = packet_te[idx] - packet_ts[idx]
                     for idx2 in range(len(packet_te)):
+                        '''
                         if packet_te[idx2]>=ts_limit and packet_te[idx2]+time_consumption<=te_limit:
                             temp1 = packetSequence[idx]
                             temp2 = popu[idx]
-                            for idx3 in range(idx2+1,idx):
+                            for idx3 in range(idx-1,idx2,-1):
                                 packetSequence[idx3+1] = packetSequence[idx3]
                                 popu[idx3+1] = popu[idx3]
                             packetSequence[idx2+1] = temp1
                             popu[idx2 + 1] = temp2
                             temp = packet_ts_limit[idx]
-                            for idx3 in range(idx2+1,idx):
+                            for idx3 in range(idx-1,idx2,-1):
                                 packet_ts_limit[idx3+1] = packet_ts_limit[idx3]
                             packet_ts_limit[idx2+1] = temp
                             temp = packet_te_limit[idx]
-                            for idx3 in range(idx2+1,idx):
+                            for idx3 in range(idx-1,idx2,-1):
                                 packet_te_limit[idx3+1] = packet_te_limit[idx3]
                             packet_te_limit[idx2+1] = temp
 
                             current_te = packet_te[idx2] + time_consumption
-                            for idx3 in range(idx2+1,idx):
+                            for idx3 in range(idx-1,idx2,-1):
                                 packet_te[idx3 + 1] = packet_te[idx3]
                                 packet_ts[idx3 + 1] = packet_ts[idx3]
                             if packet_ts[idx2 + 2]<current_te:
@@ -232,21 +232,24 @@ class packetSchedulingTask:
                                 else:
                                     break
                             break
-                        else:
+                        el
+                        '''
+                        if packet_te[idx2]+time_consumption>=te_limit:
                             temp =  packetSequence[idx]
                             temp2 = popu[idx]
-                            for idx3 in range(idx2,idx):
+                            #for idx3 in range(idx2,idx):
+                            for idx3 in range(idx-1, idx2-1, -1):
                                 packetSequence[idx3+1] = packetSequence[idx3]
                                 popu[idx3 + 1] = packetSequence[idx3]
                             packetSequence[idx2] = temp
                             popu[idx2] = temp2
 
                             temp = packet_ts_limit[idx]
-                            for idx3 in range(idx2,idx):
+                            for idx3 in range(idx-1, idx2-1, -1):
                                 packet_ts_limit[idx3+1] = packet_ts_limit[idx3]
                             packet_ts_limit[idx2] = temp
                             temp = packet_te_limit[idx]
-                            for idx3 in range(idx2,idx):
+                            for idx3 in range(idx-1, idx2-1, -1):
                                 packet_te_limit[idx3+1] = packet_te_limit[idx3]
                             packet_te_limit[idx2] = temp
 
@@ -254,20 +257,21 @@ class packetSchedulingTask:
                                 current_te = time_consumption
                             else:
                                 current_te = packet_te[idx2-1] + time_consumption
-                            for idx3 in range(idx2,idx):
+                            for idx3 in range(idx-1, idx2-1, -1):
                                 packet_te[idx3 + 1] = packet_te[idx3]
                                 packet_ts[idx3 + 1] = packet_ts[idx3]
-                            if packet_ts[idx2 + 1]<current_te:
-                                delta = current_te - packet_ts[idx2 + 1]
-                                packet_ts[idx2 + 1] += delta
-                                packet_te[idx2 + 1] += delta
-                            for idx3 in range(idx2+1,len(packet_te)-1):
-                                if packet_ts[idx3 + 1]< packet_te[idx3]:
-                                    delta = packet_te[idx3] - packet_ts[idx3 + 1]
-                                    packet_ts[idx3 + 1] += delta
-                                    packet_te[idx3 + 1] += delta
-                                else:
-                                    break
+                            if idx2 + 1<len(packet_te):
+                                if packet_ts[idx2 + 1]<current_te:
+                                    delta = current_te - packet_ts[idx2 + 1]
+                                    packet_ts[idx2 + 1] += delta
+                                    packet_te[idx2 + 1] += delta
+                                for idx3 in range(idx2+1,len(packet_te)-1):
+                                    if packet_ts[idx3 + 1]< packet_te[idx3]:
+                                        delta = packet_te[idx3] - packet_ts[idx3 + 1]
+                                        packet_ts[idx3 + 1] += delta
+                                        packet_te[idx3 + 1] += delta
+                                    else:
+                                        break
                             break
                     idx+=1
                 else:
@@ -331,12 +335,19 @@ class packetSchedulingTask:
             girl = np.copy(mother)
             for j in range(packet_size):
                 if np.random.rand() < rate_tilt:
+                    a = boy[j]
+                    idx = boy.tolist().index(mother[j])
                     boy[j] = mother[j]
+                    boy[idx] = a
                 if np.random.rand() < rate_tilt:
+                    a = girl[j]
+                    idx = girl.tolist().index(father[j])
                     girl[j] = father[j]
+                    girl[idx] = a
             new_population[i1] = boy
             new_population[i2] = girl
         return new_population
+
     def __Genetic_mutate(self, new_popu):
         packet_num = len(new_popu)
         for i in range(packet_num):
@@ -349,9 +360,37 @@ class packetSchedulingTask:
 
         return new_popu
 
+    def outputResult(self):
+        schedule = self.best_solution
+        slices = self.slices
 
+        total_packets = len(schedule)  # 数据包总数
+        print(total_packets)
 
+        packet_ts = np.zeros((len(schedule)),dtype=np.int32)
+        packet_te = np.zeros((len(schedule)),dtype=np.int32)
+        packet_ts_limit = np.zeros((len(schedule)),dtype=np.int32)
+        packet_te_limit = np.zeros((len(schedule)), dtype=np.int32)
 
+        idx = 0
+        idxes = np.zeros((len(slices)), dtype=np.int32)
+        last_te = np.int32(0)
+        max_delay = 0
+        num_satisfied_user = np.ones((len(slices)), dtype=np.int32)
+        for slice_id in schedule:
+            packet_ts_limit[idx] = slices[slice_id]["packets"][idxes[slice_id]][0]
+            if packet_ts_limit[idx] > last_te:
+                packet_ts[idx] = packet_ts_limit[idx]
+            else:
+                packet_ts[idx] = np.int32(last_te)
+                if packet_ts[idx] - packet_ts_limit[idx] > max_delay:
+                    max_delay = packet_ts[idx] - packet_ts_limit[idx]
+            packet_te[idx] = np.int32(packet_ts[idx] + slices[slice_id]["time_consumptions"][idxes[slice_id]])
+            last_te = np.int32(packet_te[idx])
+            packet_te_limit[idx] = slices[slice_id]["deadlines"][idxes[slice_id]]
+            print(f"{packet_ts[idx]} {slice_id} {idxes[slice_id]}", end=" ")
+            idx += 1
+            idxes[slice_id] += 1
 
 
 
@@ -451,6 +490,7 @@ class GeneticAlgorithmScheduler:
 # 输入解析函数
 # 解析输入，生成用于调度的数据
 def parse_input():
+    '''
     n = 2  # 切片数量
     port_bw = 2  # 端口带宽 (Gbps)
     slices = [
@@ -463,18 +503,83 @@ def parse_input():
         for num in range(slice["num_packets"]):
             slice["deadlines"].append(slice["packets"][num][0]+slice["max_delay"])
             slice["time_consumptions"].append(slice["packets"][num][1]/port_bw)
+    '''
+    # Read all input data
+    data = sys.stdin.read().split()
+    idx = 0  # Count
+    '''
+    Example Input
+    2 2 
+    3 1 30000 
+    0 8000 1000 16000 3000 8000 
+    3 1 30000 
+    0 8000 1000 16000 3000 8000 
+    '''
+    # Number of slices and PortBW
+    # Output packet num has to equal input packet num
+    n = int(data[idx]);
+    idx += 1  # (1 < n <= 10000),
+    port_bw = float(data[idx]);
+    idx += 1  # in Gbps
 
+    slices = []
+
+    for slice_id in range(n):  # 2pkgs
+        m_i = int(data[idx]);
+        idx += 1  # num slice packets
+        SliceBW_i = float(data[idx]);
+        idx += 1  # SliceBW ranges from 0.01Gbps to 10Gbp
+        UBD_i = int(data[idx]);
+        idx += 1  # slice delay tolerance
+        '''
+        Slice   SliceBW_i   UBD     num_slice_packets(m_n)
+        1       1           3000    3
+        2       1           3000    3
+        '''
+        # sequence information about the indiviual slice
+        packets = []
+        for pkt_id in range(m_i):
+            '''
+            s.p     UBD         ts      Deadline
+            s1.p1   30000       0       30000
+            s2.p1   30000       0       30000
+            s1.p2   30000       1000    31000
+            s2.p2   30000       1000    31000
+            s1.p3   30000       3000    33000
+            s2.p3   30000       3000    33000
+            '''
+            ts = int(data[idx]);
+            idx += 1  # arrival time in ns
+            pkt_size = int(data[idx]);
+            idx += 1  # 512 bit <= pkt_size <= 76800 bit.
+            deadline = ts + UBD_i
+            '''
+                        slices = [
+                {"num_packets": 3, "slice_bw": 1, "max_delay": 25000,
+                 "packets": [(0, 8000), (1000, 16000), (3000, 16000)]},
+                {"num_packets": 3, "slice_bw": 1, "max_delay": 25000,
+                 "packets": [(0, 8000), (8000, 16000), (16000, 16000)]}
+            ]
+            '''
+            packets.append((ts,pkt_size))
+        slices.append({"num_packets":m_i,"slice_bw":SliceBW_i,"max_delay":UBD_i,"packets":packets})
+        for slice in slices:
+            slice["deadlines"] = []
+            slice["time_consumptions"] = []
+            for num in range(slice["num_packets"]):
+                slice["deadlines"].append(slice["packets"][num][0] + slice["max_delay"])
+                slice["time_consumptions"].append(slice["packets"][num][1] / port_bw)
     return n, port_bw, slices
+
 
 
 if __name__ == "__main__":
     # 主程序入口，执行遗传算法调度
     n, port_bw, slices = parse_input()
     ga_scheduler = packetSchedulingTask(slices, port_bw)  # 创建遗传算法调度器
-    best_schedule = ga_scheduler.optimizeSchedule()  # 运行调度算法，获取最优的调度方案
+    best_schedule, best_obj = ga_scheduler.optimizeSchedule()  # 运行调度算法，获取最优的调度方案
 
     # 输出结果
-    total_packets = len(best_schedule)  # 数据包总数
-    print(total_packets)
-    for leave_time, slice_id, pkt_id, _ in best_schedule:
-        print(f"{leave_time} {slice_id} {pkt_id}", end=" ")  # 输出每个数据包的离开时间、切片ID和包ID
+    ga_scheduler.outputResult()
+
+
