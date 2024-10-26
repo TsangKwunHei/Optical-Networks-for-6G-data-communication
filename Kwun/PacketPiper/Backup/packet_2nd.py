@@ -1,142 +1,236 @@
+from dataclasses import dataclass
 import sys
 import threading
 import math
 import heapq
 from collections import deque
+from itertools import count  # Import count for unique sequence numbers
+
+
+@dataclass
+class Packet:
+    ts: int
+    pkt_size: int
+    pkt_id: int
+    slice_id: int
+    deadline: int
+
+
+@dataclass
+class Slice:
+    ubd: int
+    slice_bw: float
+    slice_id: int
+    packets: deque[Packet]
+    total_bits_sent: int
+    first_ts: int
+    last_te: int
+    max_delay: int
+
 
 def main():
-    import sys
-
-    # Read all input data
+    # Read all input data from standard input and split into tokens
     data = sys.stdin.read().split()
-    idx = 0
+    index = 0  # Current position in the input data
 
-    # Number of slices and PortBW
-    n = int(data[idx]); idx += 1
-    PortBW_Gbps = float(data[idx]); idx += 1  # in Gbps
-    PortBW = PortBW_Gbps  # bits/ns (since 1 Gbps = 1 bit/ns)
+    # Parse the number of slices and Port Bandwidth (Gbps)
+    num_slices = int(data[index])
+    index += 1
+    port_bw_gbps = float(data[index])  # Port Bandwidth in Gbps
+    index += 1
+    port_bw = port_bw_gbps  # Port Bandwidth for calculations
 
-    slices = []
-    all_packets = []
-    for slice_id in range(n):
-        m_i = int(data[idx]); idx += 1
-        SliceBW_i = float(data[idx]); idx += 1  # in Gbps
-        UBD_i = int(data[idx]); idx += 1  # in ns
-        packets = []
-        for pkt_id in range(m_i):
-            ts = int(data[idx]); idx += 1  # arrival time in ns
-            pkt_size = int(data[idx]); idx += 1  # in bits
-            deadline = ts + UBD_i
-            packet = {
-                'ts': ts,
-                'pkt_size': pkt_size,
-                'pkt_id': pkt_id,
-                'slice_id': slice_id,
-                'deadline': deadline
-            }
+    slices: list[Slice] = []  # List to hold all slices
+    all_packets: list[Packet] = []  # List to hold all packets across all slices
+
+    # Process each slice's data
+    for slice_id in range(num_slices):
+        num_slice_packets = int(data[index])  # Number of packets in the current slice
+        index += 1
+        slice_bw = float(data[index])  # Slice Bandwidth (Gbps)
+        index += 1
+        slice_delay_tolerance = int(data[index])  # Maximum delay tolerance (UBD)
+        index += 1
+
+        # Initialize list to store packets for the current slice
+        packets: list[Packet] = []
+        for packet_id in range(num_slice_packets):
+            arrival_time_ns = int(data[index])  # Packet arrival time in nanoseconds
+            index += 1
+            packet_size = int(data[index])  # Packet size in bits
+            index += 1
+            deadline = (
+                arrival_time_ns + slice_delay_tolerance
+            )  # Calculate packet deadline
+
+            # Create a dictionary to represent the packet's attributes
+            packet = Packet(
+                ts=arrival_time_ns,
+                pkt_size=packet_size,
+                pkt_id=packet_id,
+                slice_id=slice_id,
+                deadline=deadline,
+            )
             packets.append(packet)
             all_packets.append(packet)
-        slice_info = {
-            'UBD_i': UBD_i,
-            'SliceBW_i': SliceBW_i,
-            'slice_id': slice_id,
-            'packets': deque(sorted(packets, key=lambda x: x['ts'])),  # Ensure packets are ordered
-            'total_bits_sent': 0,
-            'first_ts': packets[0]['ts'] if packets else 0,
-            'last_te': 0,
-            'max_delay': 0
-        }
+
+        # Sort packets in the slice based on arrival time and store in a deque for efficient popping
+        sorted_packets = deque(sorted(packets, key=lambda pkt: pkt.ts))
+
+        # Create a dictionary to hold slice-specific information
+
+        slice_info = Slice(
+            ubd=slice_delay_tolerance,
+            slice_bw=slice_bw,
+            slice_id=slice_id,
+            packets=sorted_packets,
+            total_bits_sent=0,
+            first_ts=packets[0].ts if packets else 0,
+            last_te=0,
+            max_delay=0,
+        )
         slices.append(slice_info)
 
-    # Sort all packets by arrival time
-    all_packets.sort(key=lambda pkt: pkt['ts'])
-    total_packets = len(all_packets)
+    # Sort all packets by their arrival time to process them in order
+    all_packets.sort(key=lambda pkt: pkt.ts)
+    total_packets = len(all_packets)  # Total number of packets across all slices
 
-    # Scheduled packets list
-    scheduled_packets = []
+    scheduled_packets: list[
+        tuple[int, int, int]
+    ] = []  # List to store scheduled packets
 
-    # Initialize variables
+    # Initialize scheduling variables
     current_time = 0
     port_available_time = 0
-    packet_idx = 0
-    heap = []
+    packet_index = 0
+    heap: list[tuple[tuple[int, float, int, int], Packet]] = []  # Priority heap
+    unique_counter = count()  # Initialize the unique counter
 
-    # Priority function: (earliest deadline, highest SliceBW, earliest slice_id)
-    def get_priority(pkt):
-        return (pkt['deadline'], -slices[pkt['slice_id']]['SliceBW_i'], slices[pkt['slice_id']]['slice_id'])
+    def get_priority(packet: Packet, cnt: int):
+        """
+        Calculate the priority of a packet based on its deadline, slice bandwidth, slice ID, and a unique counter.
+
+        Priority is determined by:
+        1. Earliest deadline (higher priority)
+        2. Higher slice bandwidth (negated for max-heap behavior)
+        3. Lower slice ID (earlier slices have higher priority)
+        4. Unique counter to ensure uniqueness
+
+        Args:
+            packet (dict): The packet dictionary containing its attributes.
+            cnt (int): A unique counter to break ties.
+
+        Returns:
+            tuple: A tuple representing the packet's priority.
+        """
+        return (
+            packet.deadline,
+            -slices[packet.slice_id].slice_bw,
+            slices[packet.slice_id].slice_id,
+            cnt,  # Unique counter as the last element
+        )
 
     # Main scheduling loop
-    while packet_idx < total_packets or heap:
-        # Add all packets that have arrived up to current_time to the heap
-        while packet_idx < total_packets and all_packets[packet_idx]['ts'] <= current_time:
-            pkt = all_packets[packet_idx]
-            heapq.heappush(heap, (get_priority(pkt), pkt))
-            packet_idx += 1
+    while packet_index < total_packets or heap:
+        # Add all packets that have arrived up to the current_time to the heap
+        while (
+            packet_index < total_packets
+            and all_packets[packet_index].ts <= current_time
+        ):
+            packet = all_packets[packet_index]
+            cnt = next(unique_counter)  # Get the next unique counter
+            heapq.heappush(heap, (get_priority(packet, cnt), packet))
+            packet_index += 1
 
         if not heap:
-            # No packets to schedule, advance time
-            if packet_idx < total_packets:
-                current_time = max(current_time, all_packets[packet_idx]['ts'], port_available_time)
+            # No packets to schedule, advance current_time to the next packet's arrival or port availability
+            if packet_index < total_packets:
+                next_packet_ts = all_packets[packet_index].ts
+                current_time = max(current_time, next_packet_ts, port_available_time)
             else:
                 break
             continue
 
-        # Pop the packet with the highest priority
-        _, pkt = heapq.heappop(heap)
-        slice_id = pkt['slice_id']
-        s = slices[slice_id]
+        # Pop the packet with the highest priority from the heap
+        _, packet = heapq.heappop(heap)
+        slice_id = packet.slice_id
+        slice_info = slices[slice_id]
 
-        # Ensure packets are scheduled in order within the slice
-        if s['packets'] and s['packets'][0]['pkt_id'] != pkt['pkt_id']:
-            # Not the next packet in slice, skip and re-add to heap
-            heapq.heappush(heap, ((get_priority(pkt)), pkt))
-            # Advance current_time to the earliest possible next packet
-            if s['packets']:
-                next_pkt = s['packets'][0]
-                current_time = max(current_time, next_pkt['ts'], port_available_time)
+        # Ensure packets are scheduled in the order they arrived within the same slice
+        if slice_info.packets and slice_info.packets[0].pkt_id != packet.pkt_id:
+            heapq.heappush(heap, (get_priority(packet, next(unique_counter)), packet))
+            if slice_info.packets:
+                next_packet = slice_info.packets[0]
+                current_time = max(current_time, next_packet.ts, port_available_time)
             continue
 
-        # Pop the next packet from the slice's queue
-        if s['packets']:
-            next_packet = s['packets'].popleft()
+        # Remove the next packet from the slice's queue
+        if slice_info.packets:
+            next_packet = slice_info.packets.popleft()
         else:
             next_packet = None
 
-        # Determine earliest possible departure time
-        te_candidate = max(current_time, pkt['ts'], s['last_te'], port_available_time)
+        # Determine the earliest possible departure time for the packet
+        te_candidate = max(
+            current_time, packet.ts, slice_info.last_te, port_available_time
+        )
         te = math.ceil(te_candidate)
 
-        # Calculate transmission time
-        transmission_time = math.ceil(pkt['pkt_size'] / PortBW)
+        """
+        In this code, 
+        now it basically every time it's just choose the, 
+        port_available_time as te, 
+        (except that for 1st packet it process (which port_available_time is not yet available) choose the current's time)
+        """
+        # Calculate the transmission time based on packet size and port bandwidth
+        transmission_time = math.ceil(packet.pkt_size / port_bw)
 
-        # Update port availability
+        # Update the port's next available time
         port_available_time = te + transmission_time
 
-        # Update slice's last_te
-        s['last_te'] = te
+        # Update the slice's last departure time
+        slice_info.last_te = te
 
-        # Update slice's metrics
-        s['total_bits_sent'] += pkt['pkt_size']
-        delay = te - pkt['ts']
-        if delay > s['max_delay']:
-            s['max_delay'] = delay
+        # Update slice metrics
+        slice_info.total_bits_sent += packet.pkt_size
+        delay = te - packet.ts
+        if delay > slice_info.max_delay:
+            slice_info.max_delay = delay
 
-        # Record the scheduled packet
-        scheduled_packets.append((te, slice_id, pkt['pkt_id']))
+        # Record the scheduled packet's departure time, slice ID, and packet ID
+        scheduled_packets.append((te, slice_id, packet.pkt_id))
 
-        # Advance current time
+        # Advance the current_time to the packet's departure time
         current_time = te
 
-    # After scheduling, verify and adjust to meet slice bandwidth constraints
-    # This section can be expanded to adjust scheduling if necessary
+    # Calculate the score based on the scheduling performance
+    fi_sum = 0
+    max_delay = 0
+    for slice_info in slices:
+        # Determine if the slice meets its delay tolerance
+        fi = 1 if slice_info.max_delay <= slice_info.ubd else 0
+        fi_sum += fi / num_slices
+        if slice_info.max_delay > max_delay:
+            max_delay = slice_info.max_delay
+
+    # Section I made for debug (Useless to actual Output)
+    # if max_delay > 0:
+    #     score = fi_sum + (10000 / max_delay)
+    # else:
+    #     score = fi_sum + 10000
 
     # Output generation
+    # K must equal the number of scheduled packets
     K = len(scheduled_packets)
     print(K)
-    output = []
+
+    # Prepare the output scheduling sequence
+    output: list[str] = []
     for te, slice_id, pkt_id in scheduled_packets:
         output.append(f"{te} {slice_id} {pkt_id}")
-    print(' '.join(output))
+    print(" ".join(output))
+
 
 if __name__ == "__main__":
+    # Start the main function in a separate thread to avoid potential recursion limits
     threading.Thread(target=main).start()

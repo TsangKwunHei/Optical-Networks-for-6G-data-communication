@@ -60,7 +60,7 @@ def main():
     total_start_time = time.time()
 
     # Run packet.py with the input data
-    packet_py_path = os.path.join(script_dir, 'packet.py')
+    packet_py_path = os.path.join(script_dir, 'GA.py')
     try:
         packet_process = subprocess.Popen(
             [sys.executable, packet_py_path],
