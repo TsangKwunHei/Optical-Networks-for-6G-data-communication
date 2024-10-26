@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import sys
+import threading
 import math
 import heapq
 from collections import deque
@@ -25,11 +26,9 @@ class Slice:
     first_ts: int
     last_te: int
     max_delay: int
-    expected_bits: int = 0  # Track expected bandwidth usage
-    waiting_time: int = 0  # Track cumulative waiting time
 
 
-def get_environment():
+def main():
     # Read all input data from standard input and split into tokens
     data = sys.stdin.read().split()
     index = 0  # Current position in the input data
@@ -94,62 +93,8 @@ def get_environment():
 
     # Sort all packets by their arrival time to process them in order
     all_packets.sort(key=lambda pkt: pkt.ts)
-    return port_bw, slices, all_packets
+    total_packets = len(all_packets)  # Total number of packets across all slices
 
-
-def get_slice_utilization(slice_info: Slice, current_time: int) -> float:
-    """Calculate slice utilization ratio"""
-    elapsed_time = max(1, current_time - slice_info.first_ts)
-    expected_bits = (
-        slice_info.slice_bw * elapsed_time
-    )  # Expected bits based on bandwidth
-    actual_bits = slice_info.total_bits_sent
-    return actual_bits / expected_bits if expected_bits > 0 else 1.0
-
-
-def calculate_urgency(packet: Packet, current_time: int) -> float:
-    """Calculate packet urgency based on deadline and size"""
-    remaining_time = max(1, packet.deadline - current_time)
-    return packet.pkt_size / remaining_time
-
-
-def get_aging_factor(
-    packet: Packet, current_time: int, base_aging: float = 1.2
-) -> float:
-    """Calculate aging factor that increases priority for waiting packets"""
-    waiting_time = current_time - packet.ts
-    return base_aging ** (waiting_time // 1000)
-
-
-def get_priority(packet: Packet, slice_info: Slice, current_time: int, cnt: int):
-    """Enhanced priority calculation incorporating multiple factors"""
-    # Calculate basic urgency
-    urgency = calculate_urgency(packet, current_time)
-
-    # Get slice utilization (lower utilization = higher priority)
-    utilization = get_slice_utilization(slice_info, current_time)
-
-    # Calculate normalized deadline factor (earlier deadline = higher priority)
-    deadline_factor = 1.0 / max(1, packet.deadline - current_time)
-
-    # Get aging factor
-    aging = get_aging_factor(packet, current_time)
-
-    # Calculate final priority score (lower value = higher priority)
-    priority_score = (
-        deadline_factor,
-        -urgency * aging,  # Urgency adjusted by aging
-        -slice_info.slice_bw
-        * (1 - utilization),  # Bandwidth weight adjusted by utilization
-        cnt,  # Maintain stable sorting
-    )
-
-    return priority_score
-
-
-def main():
-    port_bw, slices, all_packets = get_environment()
-    total_packets = len(all_packets)  # Total number of packets
     scheduled_packets: list[
         tuple[int, int, int]
     ] = []  # List to store scheduled packets
@@ -158,14 +103,21 @@ def main():
     current_time = 0
     port_available_time = 0
     packet_index = 0
-    heap: list[tuple[tuple[float, float, float, int], Packet]] = []  # Priority heap
+    heap: list[tuple[tuple[int, float, int, int], Packet]] = []  # Priority heap
     unique_counter = count()  # Initialize the unique counter
+
+    def get_priority(packet: Packet, cnt: int):
+        # Earliest deadline (can be delayed by ubd)
+        slice = slices[packet.slice_id]
+        return (
+            packet.deadline + slice.ubd - math.ceil(packet.pkt_size / port_bw),
+            -slice.slice_bw,
+            slice.slice_id,
+            cnt,  # Unique counter as the last element
+        )
 
     # Main scheduling loop
     while packet_index < total_packets or heap:
-        for slice_info in slices:
-            if slice_info.packets:
-                slice_info.waiting_time += len(slice_info.packets)
         # Add all packets that have arrived up to the current_time to the heap
         while (
             packet_index < total_packets
@@ -173,13 +125,7 @@ def main():
         ):
             packet = all_packets[packet_index]
             cnt = next(unique_counter)  # Get the next unique counter
-            heapq.heappush(
-                heap,
-                (
-                    get_priority(packet, slices[packet.slice_id], current_time, cnt),
-                    packet,
-                ),
-            )
+            heapq.heappush(heap, (get_priority(packet, cnt), packet))
             packet_index += 1
 
         if not heap:
@@ -198,18 +144,7 @@ def main():
 
         # Ensure packets are scheduled in the order they arrived within the same slice
         if slice_info.packets and slice_info.packets[0].pkt_id != packet.pkt_id:
-            heapq.heappush(
-                heap,
-                (
-                    get_priority(
-                        packet,
-                        slices[packet.slice_id],
-                        current_time,
-                        next(unique_counter),
-                    ),
-                    packet,
-                ),
-            )
+            heapq.heappush(heap, (get_priority(packet, next(unique_counter)), packet))
             if slice_info.packets:
                 next_packet = slice_info.packets[0]
                 current_time = max(current_time, next_packet.ts, port_available_time)
@@ -255,14 +190,14 @@ def main():
         current_time = te
 
     # Calculate the score based on the scheduling performance
-    # fi_sum = 0
-    # max_delay = 0
-    # for slice_info in slices:
-    #     # Determine if the slice meets its delay tolerance
-    #     fi = 1 if slice_info.max_delay <= slice_info.ubd else 0
-    #     fi_sum += fi / num_slices
-    #     if slice_info.max_delay > max_delay:
-    #         max_delay = slice_info.max_delay
+    fi_sum = 0
+    max_delay = 0
+    for slice_info in slices:
+        # Determine if the slice meets its delay tolerance
+        fi = 1 if slice_info.max_delay <= slice_info.ubd else 0
+        fi_sum += fi / num_slices
+        if slice_info.max_delay > max_delay:
+            max_delay = slice_info.max_delay
 
     # Section I made for debug (Useless to actual Output)
     # if max_delay > 0:
@@ -283,20 +218,5 @@ def main():
 
 
 if __name__ == "__main__":
-    # Start a thread with timeout of 20 seconds. Get stacktrace of where the code is stuck
-    import threading
-
-    def timeout():
-        import traceback
-
-        print("Timeout")
-        traceback.print_stack()
-        sys.exit(1)
-
-    timer = threading.Timer(20, timeout)
-
-    timer.start()
-    main()
-
-    timer.cancel()
-    sys.exit(0)
+    # Start the main function in a separate thread to avoid potential recursion limits
+    threading.Thread(target=main).start()
