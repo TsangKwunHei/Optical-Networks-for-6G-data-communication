@@ -447,15 +447,6 @@ def parse_input():
     """
     解析输入，生成用于调度的数据
 
-    Input format:
-    Line 1: Number of slice users n (1 ≤ n ≤ 10000), PortBW(Gbps)
-    Line 2: number of first slice packets m_1, slice bandwidth SliceBW_1, and maximum slice delay tolerance UBD_1
-    Line 3: sequence information about the first slice
-    ts_{1,1} PacketSize_{1,1} ts_{1,2} PacketSize_{1,2} ... ts_{1,m1} PacketSize_{1,m1}
-    ...
-    Line 2n: number of slice packets m_n, slice bandwidth SliceBW_n, and maximum slice delay tolerance UBD_n
-    Line 2n+1: sequence information of the nth slice
-    ts_{n,1} PacketSize_{n,1} ts_{n,2} PacketSize_{n,2} ... ts_{n,mn} PacketSize_{n,mn}
     """
     input_lines = sys.stdin.read().splitlines()
     line_idx = 0
